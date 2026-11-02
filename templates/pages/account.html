@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}حساب کاربری | تاتامی پلاس{% endblock %}
+{% block content %}
+<main class="page-main">
+  <p class="eyebrow">حساب کاربری تاتامی پلاس</p>
+  {% if user.is_authenticated %}
+    <h1 class="page-title">خوش آمدی، {{ user.username }}</h1>
+    <p class="page-copy">نوع حساب: {{ user.get_role_display }}.</p>
+    {% if user.role == 'coach' %}
+      <a class="button button-dark" href="{% url 'coaches:apply' %}">ثبت درخواست مربیگری</a>
+    {% endif %}
+  {% else %}
+    <h1 class="page-title">مسیرت را انتخاب کن</h1>
+    <p class="page-copy">برای ادامه، حساب هنرجو یا مربی بساز یا وارد حساب خودت شو.</p>
+    <section class="role-list" aria-label="نوع حساب کاربری">
+      <div class="role-row">
+        <span class="role-number">۰۱</span>
+        <div><h2>هنرجو</h2><p>مربیان را ببین و سفارش‌هایت را پیگیری کن.</p></div>
+        <a class="role-action" href="{% url 'accounts:register' %}?role=student">ثبت‌نام</a>
+      </div>
+      <div class="role-row">
+        <span class="role-number">۰۲</span>
+        <div><h2>مربی</h2><p>برای بررسی درخواست مربیگری اقدام کن.</p></div>
+        <a class="role-action" href="{% url 'accounts:register' %}?role=coach">ثبت‌نام</a>
+      </div>
+      <div class="role-row">
+        <span class="role-number">۰۳</span>
+        <div><h2>باشگاه</h2><p>این گزینه فقط نمایشی است و در نسخهٔ اولیه حساب باشگاه ساخته نمی‌شود.</p></div>
+        <span class="role-status">نمایشی</span>
+      </div>
+    </section>
+    <p class="account-login">قبلاً ثبت‌نام کرده‌ای؟ <a href="{% url 'accounts:login' %}">وارد شو</a></p>
+  {% endif %}
+</main>
+{% endblock %}

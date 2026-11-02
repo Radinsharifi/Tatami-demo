@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% load persian %}
+{% load jformat %}
+{% block title %}وضعیت درخواست | تاتامی پلاس{% endblock %}
+{% block content %}
+<main class="page-main">
+  <p class="eyebrow">درخواست مربیگری</p>
+  <h1 class="page-title">{{ application.get_status_display }}</h1>
+  <section class="empty-state">
+    <span class="empty-index">تاریخ ثبت: {{ application.submitted_at|jformat:'%Y/%m/%d'|persian_digits }}</span>
+    {% if application.status == 'pending_review' %}
+      <h2>در انتظار بررسی</h2>
+      <p>تیم تاتامی پلاس درخواست شما را بررسی می‌کند.</p>
+    {% elif application.status == 'rejected' %}
+      <h2>درخواست تأیید نشد</h2>
+      <p>{{ application.rejection_reason }}</p>
+    {% else %}
+      <h2>درخواست تأیید شد</h2>
+      <p>پروفایل عمومی پس از انتشار توسط تیم نمایش داده می‌شود.</p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

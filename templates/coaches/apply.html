@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}درخواست مربیگری | تاتامی پلاس{% endblock %}
+{% block content %}
+<main class="page-main auth-main">
+  <p class="eyebrow">حساب مربی</p>
+  <h1 class="page-title">درخواست همکاری</h1>
+  <p class="page-copy">درخواست شما توسط تیم تاتامی پلاس بررسی می‌شود. ثبت درخواست، پروفایل عمومی را به‌طور خودکار منتشر نمی‌کند.</p>
+  <form class="auth-form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+      <div class="form-field">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
+        {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+    {% endfor %}
+    <button class="button button-dark" type="submit">ثبت درخواست</button>
+  </form>
+</main>
+{% endblock %}
