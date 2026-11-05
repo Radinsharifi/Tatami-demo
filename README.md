@@ -44,3 +44,5 @@ The `accounts.User` model extends Django's `AbstractUser` and adds `student` and
 - Server-side price totals and stock checks when adding or updating cart items.
 
 The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The price currency is not confirmed. Checkout, order history, and payment integration are not implemented; shipping methods/costs and the payment provider need decisions before those workflows are added.
+
+For frontend/backend route, form, template, and collaboration conventions, see [FRONTEND_BACKEND_HANDOFF.md](FRONTEND_BACKEND_HANDOFF.md).
