@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+from decimal import Decimal
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -50,15 +51,24 @@ INSTALLED_APPS = [
     'accounts.apps.AccountsConfig',
     'coaches.apps.CoachesConfig',
     'store.apps.StoreConfig',
+    'orders.apps.OrdersConfig',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
-LOGIN_URL = 'accounts:login'
+LOGIN_URL = 'phone_auth:login'
 LOGIN_REDIRECT_URL = 'account'
 SMS_BACKEND = config(
     'SMS_BACKEND',
     default='accounts.sms.ConsoleSMSBackend' if DEBUG else '',
 )
+PAYMENT_GATEWAY = config(
+    'PAYMENT_GATEWAY',
+    default='orders.gateways.mock.MockGateway',
+)
+# The mock gateway may run outside DEBUG (staging, tests) only when this is on.
+PAYMENT_ALLOW_MOCK = config('PAYMENT_ALLOW_MOCK', default=DEBUG, cast=bool)
+# Placeholder amount: replace with the real flat shipping price before launch.
+SHIPPING_FLAT_RATE = config('SHIPPING_FLAT_RATE', default='50000', cast=Decimal)
 SESSION_COOKIE_AGE = 30 * 24 * 60 * 60
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG

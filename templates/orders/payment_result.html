@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load store_format %}
+
+{% block title %}نتیجهٔ پرداخت | تاتامی پلاس{% endblock %}
+{% block content %}
+<main class="page-main shop-main">
+  <p class="eyebrow">نتیجهٔ پرداخت</p>
+
+  {% if payment.status == 'succeeded' %}
+    <h1 class="page-title">پرداخت انجام شد</h1>
+    <p class="page-copy">کد پیگیری: {{ payment.ref_id }}</p>
+    {% if order %}
+      <section class="cart-summary">
+        <p>شمارهٔ سفارش: <strong>{{ order.number }}</strong></p>
+        <p>مبلغ: <strong>{{ payment.amount|price_fa }}</strong> تومان</p>
+        <a class="button button-dark" href="{% url 'orders:detail' order.number %}">مشاهدهٔ سفارش</a>
+      </section>
+    {% endif %}
+  {% else %}
+    <h1 class="page-title">پرداخت انجام نشد</h1>
+    <p class="page-copy">مبلغی از حساب شما کم نشده است. می‌توانید سبد خرید را بررسی و دوباره تلاش کنید.</p>
+    <a class="button button-dark" href="{% url 'store:cart' %}">بازگشت به سبد خرید</a>
+  {% endif %}
+
+  <p><a class="text-link" href="{% url 'orders:list' %}">سفارش‌های من</a></p>
+</main>
+{% endblock %}

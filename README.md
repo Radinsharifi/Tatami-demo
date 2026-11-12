@@ -45,7 +45,10 @@ Members sign in at `/auth/login/` with a phone number and a five-digit code; the
 - Admin-managed product categories, products, local images, size/color variants, prices, and stock.
 - Catalog search, category/price/size/color/level filters, sorting, guest session carts, and user carts that merge after login.
 - Server-side price totals and stock checks when adding or updating cart items.
+- Saved addresses and a checkout flow (address → review → payment) that recalculates prices, shipping, and stock on the server.
+- A `Payment` ledger with an idempotent gateway callback, plus order history and admin order management.
+- A mock payment gateway (`orders/gateways/mock.py`) that follows the real request/verify protocol so a provider can be swapped in later.
 
-The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The price currency is not confirmed. Checkout, order history, payment, the virtual club, the gem ledger, and club geo search are not implemented; those workflows need the decisions listed in the phase plan before they are added.
+The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The currency is Toman. `SHIPPING_FLAT_RATE` defaults to a placeholder 50,000 until the real flat price is confirmed. There is no real payment provider yet: `PAYMENT_GATEWAY` points at the mock, which refuses to run unless `PAYMENT_ALLOW_MOCK` is enabled. The virtual club, the gem ledger, and club geo search are not implemented.
 
 For frontend/backend route, form, template, and collaboration conventions, see [FRONTEND_BACKEND_HANDOFF.md](FRONTEND_BACKEND_HANDOFF.md).

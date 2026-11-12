@@ -18,6 +18,7 @@
       <a href="{% url 'store:cart' %}">سبد خرید</a>
       <a href="{% url 'account' %}">حساب کاربری</a>
       {% if user.is_authenticated %}
+      <a href="{% url 'orders:list' %}">سفارش‌ها</a>
       <form class="nav-form" method="post" action="{% url 'accounts:logout' %}">
         {% csrf_token %}
         <button class="nav-button" type="submit">خروج</button>
