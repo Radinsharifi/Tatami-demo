@@ -20,7 +20,7 @@
       {{ form.role }}
       {% for error in form.role.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
     </div>
-    {{ form._next }}
+    {{ form.next_url }}
     <button class="button button-dark" type="submit">دریافت کد</button>
   </form>
 </main>

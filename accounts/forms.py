@@ -13,16 +13,13 @@ class PhoneLoginForm(forms.Form):
         choices=User.Role.choices,
         initial=User.Role.STUDENT,
     )
-    _next = forms.CharField(required=False, widget=forms.HiddenInput)
+    next_url = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def clean_phone(self):
         try:
             return normalize_iranian_phone(self.cleaned_data['phone'])
         except ValueError as exc:
             raise forms.ValidationError(str(exc)) from exc
-
-    def clean__next(self):
-        return self.cleaned_data['_next']
 
     def clean_role(self):
         role = self.cleaned_data['role']

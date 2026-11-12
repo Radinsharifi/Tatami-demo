@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from datetime import timedelta
 
 from django.contrib.auth import authenticate, get_user_model
@@ -45,7 +44,7 @@ class AuthenticationFlowTests(TestCase):
 		return self.client.post(reverse('phone_auth:login'), {
 			'phone': phone or self.phone,
 			'role': role,
-			'_next': next_url,
+			'next_url': next_url,
 		})
 
 	def verify_latest_code(self):
@@ -55,6 +54,13 @@ class AuthenticationFlowTests(TestCase):
 	def test_phone_normalization_accepts_iranian_dialing_formats(self):
 		self.assertEqual(normalize_iranian_phone('+98 912 345 6789'), self.phone)
 		self.assertEqual(normalize_iranian_phone('۰۹۱۲۳۴۵۶۷۸۹'), self.phone)
+
+	def test_login_page_renders_and_keeps_a_safe_next_target(self):
+		response = self.client.get(reverse('phone_auth:login'), {'next': '/store/cart/'})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'name="next_url"')
+		self.assertContains(response, 'value="/store/cart/"')
 
 	def test_new_phone_is_created_only_after_valid_otp(self):
 		response = self.request_code(role='coach')

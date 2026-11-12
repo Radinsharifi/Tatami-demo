@@ -52,12 +52,12 @@ def phone_login(request):
 			else:
 				request.session['otp_phone'] = phone
 				request.session['otp_role'] = role
-				request.session['otp_next'] = _safe_next(request, form.cleaned_data.get('_next'))
+				request.session['otp_next'] = _safe_next(request, form.cleaned_data.get('next_url'))
 				return redirect('phone_auth:verify_otp')
 	else:
 		form = PhoneLoginForm(initial={
 			'role': User.Role.COACH if request.GET.get('role') == User.Role.COACH else User.Role.STUDENT,
-			'_next': _safe_next(request, request.GET.get('next')),
+			'next_url': _safe_next(request, request.GET.get('next')),
 		})
 
 	return render(request, 'accounts/login.html', {'form': form})
