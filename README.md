@@ -48,7 +48,9 @@ Members sign in at `/auth/login/` with a phone number and a five-digit code; the
 - Saved addresses and a checkout flow (address → review → payment) that recalculates prices, shipping, and stock on the server.
 - A `Payment` ledger with an idempotent gateway callback, plus order history and admin order management.
 - A mock payment gateway (`orders/gateways/mock.py`) that follows the real request/verify protocol so a provider can be swapped in later.
+- A virtual club: published courses with coach/level/search filters, a free first episode, paid episodes behind an `Enrollment`, and a coach panel where new courses wait for admin review.
+- Private course videos served only by an access-checked view, with no public URL and an optional Nginx `X-Accel-Redirect` handoff.
 
-The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The currency is Toman. `SHIPPING_FLAT_RATE` defaults to a placeholder 50,000 until the real flat price is confirmed. There is no real payment provider yet: `PAYMENT_GATEWAY` points at the mock, which refuses to run unless `PAYMENT_ALLOW_MOCK` is enabled. The virtual club, the gem ledger, and club geo search are not implemented.
+The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The currency is Toman. `SHIPPING_FLAT_RATE` defaults to a placeholder 50,000 until the real flat price is confirmed. There is no real payment provider yet: `PAYMENT_GATEWAY` points at the mock, which refuses to run unless `PAYMENT_ALLOW_MOCK` is enabled. Coach revenue share and payouts, the gem ledger, and club geo search are not implemented.
 
 For frontend/backend route, form, template, and collaboration conventions, see [FRONTEND_BACKEND_HANDOFF.md](FRONTEND_BACKEND_HANDOFF.md).

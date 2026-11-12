@@ -147,18 +147,26 @@ def payment_callback(request):
 
 	payment = get_object_or_404(Payment, authority=authority)
 	payment = complete_payment(payment, data)
+	order = getattr(payment, 'order', None)
 
 	if payment.status == Payment.Status.SUCCEEDED:
-		Cart.objects.filter(user=payment.user).delete()
-		request.session.pop('shopping_cart_id', None)
-		request.session.pop('checkout_address_id', None)
+		# Only a shop order empties the cart. A course purchase must not throw
+		# away whatever the user had saved for later.
+		if order is not None:
+			Cart.objects.filter(user=payment.user).delete()
+			request.session.pop('shopping_cart_id', None)
+			request.session.pop('checkout_address_id', None)
 		messages.success(request, 'پرداخت با موفقیت انجام شد.')
 	else:
-		messages.error(request, 'پرداخت ناموفق بود یا موجودی محصول تغییر کرده است.')
+		if (payment.metadata or {}).get('course_id'):
+			messages.error(request, 'پرداخت ناموفق بود. دسترسی به دوره فعال نشد.')
+		else:
+			messages.error(request, 'پرداخت ناموفق بود یا موجودی محصول تغییر کرده است.')
 
 	return render(request, 'orders/payment_result.html', {
 		'payment': payment,
-		'order': getattr(payment, 'order', None),
+		'order': order,
+		'course': getattr(getattr(payment, 'enrollment', None), 'course', None),
 	})
 
 

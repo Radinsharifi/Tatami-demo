@@ -137,3 +137,5 @@ h1, h2, p { margin-top: 0; }
   .cart-row { grid-template-columns: 1fr 1fr; gap: 12px; }
   .cart-row > form:last-child { justify-self: start; }
 }
+.course-cover { display: block; width: 100%; max-height: 420px; margin-block: 20px; border-radius: 4px; object-fit: cover; background: #e8e9e2; }
+.course-video { display: block; width: 100%; max-height: 70vh; margin-block: 20px; border-radius: 4px; background: #20231f; }

@@ -9,6 +9,7 @@ from store.models import ProductVariant
 
 from .gateways import get_gateway
 from .models import Order, OrderItem, Payment
+from .signals import payment_succeeded
 
 
 class CheckoutError(Exception):
@@ -96,22 +97,40 @@ def create_order_from_cart(cart, address, shipping_cost=None):
 
 
 @transaction.atomic
-def start_payment(order, callback_url=''):
+def begin_payment(*, user, amount, description, callback_url='', metadata=None):
+	"""Open a gateway transaction for any amount.
+
+	Orders and course purchases both come through here, so gateway handling
+	stays in one place as the club is added.
+	"""
 	gateway = get_gateway()
 	request = gateway.request_payment(
-		amount=order.total,
-		description=f'سفارش {order.number}',
+		amount=amount,
+		description=description,
 		callback_url=callback_url,
 	)
 	payment = Payment.objects.create(
-		user=order.user,
-		amount=order.total,
+		user=user,
+		amount=amount,
 		gateway=gateway.name,
 		authority=request.authority,
+		metadata=metadata or {},
+	)
+	return payment, request.redirect_url
+
+
+@transaction.atomic
+def start_payment(order, callback_url=''):
+	payment, redirect_url = begin_payment(
+		user=order.user,
+		amount=order.total,
+		description=f'سفارش {order.number}',
+		callback_url=callback_url,
+		metadata={'order_id': order.pk},
 	)
 	order.payment = payment
 	order.save(update_fields=['payment'])
-	return payment, request.redirect_url
+	return payment, redirect_url
 
 
 def _decrement_stock(order):
@@ -182,4 +201,6 @@ def complete_payment(payment, callback_data):
 		order.status = Order.Status.PAID
 		order.paid_at = timezone.now()
 		order.save(update_fields=['status', 'paid_at'])
+
+	payment_succeeded.send(sender=Payment, payment=payment)
 	return payment

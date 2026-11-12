@@ -50,7 +50,7 @@ class CoachApplicationAdmin(admin.ModelAdmin):
 
 @admin.register(CoachProfile)
 class CoachProfileAdmin(admin.ModelAdmin):
-	list_display = ('display_name', 'application', 'is_published', 'updated_at')
+	list_display = ('display_name', 'belt', 'club', 'application', 'is_published', 'updated_at')
 	list_filter = ('is_published',)
 	search_fields = ('display_name', 'application__user__username')
 	readonly_fields = ('created_at', 'updated_at')

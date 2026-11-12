@@ -99,6 +99,9 @@ class Payment(models.Model):
 	authority = models.CharField('شناسهٔ تراکنش درگاه', max_length=64, unique=True)
 	ref_id = models.CharField('کد پیگیری', max_length=64, blank=True)
 	raw_response = models.JSONField('پاسخ خام درگاه', default=dict, blank=True)
+	# What the payment is for, without a hard foreign key per purchasable type:
+	# {'order_id': 12} or {'course_id': 7}. Receivers read this on success.
+	metadata = models.JSONField('فراداده', default=dict, blank=True)
 	created_at = jmodels.jDateTimeField('زمان ایجاد', auto_now_add=True)
 	verified_at = jmodels.jDateTimeField('زمان تأیید', null=True, blank=True)
 

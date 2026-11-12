@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'coaches.apps.CoachesConfig',
     'store.apps.StoreConfig',
     'orders.apps.OrdersConfig',
+    'club.apps.ClubConfig',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -69,6 +70,11 @@ PAYMENT_GATEWAY = config(
 PAYMENT_ALLOW_MOCK = config('PAYMENT_ALLOW_MOCK', default=DEBUG, cast=bool)
 # Placeholder amount: replace with the real flat shipping price before launch.
 SHIPPING_FLAT_RATE = config('SHIPPING_FLAT_RATE', default='50000', cast=Decimal)
+
+# Course videos are stored privately. Django streams them in development; in
+# production put Nginx in front and let it serve `/protected/` instead.
+COURSE_VIDEO_MAX_BYTES = config('COURSE_VIDEO_MAX_BYTES', default=1024 ** 3, cast=int)
+USE_X_ACCEL_REDIRECT = config('USE_X_ACCEL_REDIRECT', default=False, cast=bool)
 SESSION_COOKIE_AGE = 30 * 24 * 60 * 60
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG

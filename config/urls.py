@@ -25,6 +25,8 @@ urlpatterns = [
     path('coaches/', include('coaches.urls')),
     path('store/', include('store.urls')),
     path('', include('orders.urls')),
+    path('club/', include('club.urls')),
+    path('coach/', include('club.coach_urls')),
     path('account/', TemplateView.as_view(template_name='pages/account.html'), name='account'),
     path('accounts/', include('accounts.urls')),
     path('auth/', include('accounts.auth_urls')),
