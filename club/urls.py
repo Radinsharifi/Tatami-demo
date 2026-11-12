@@ -12,5 +12,6 @@ urlpatterns = [
 	path('course/<str:slug>/', views.course_detail, name='course_detail'),
 	path('course/<str:slug>/buy/', views.buy_course, name='buy_course'),
 	path('episode/<int:pk>/', views.episode_play, name='episode_play'),
+	path('episode/<int:pk>/complete/', views.episode_complete, name='episode_complete'),
 	path('episode/<int:pk>/stream/', views.episode_stream, name='episode_stream'),
 ]

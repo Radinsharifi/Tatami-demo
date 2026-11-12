@@ -4,6 +4,7 @@ from django import forms
 
 from .models import User
 from .phone import normalize_iranian_phone
+from .signals import profile_completed
 
 
 class PhoneLoginForm(forms.Form):
@@ -49,4 +50,5 @@ class ProfileCompletionForm(forms.Form):
         user.role = self.cleaned_data['role']
         user.is_profile_complete = True
         user.save(update_fields=['first_name', 'city', 'role', 'is_profile_complete'])
+        profile_completed.send(sender=User, user=user)
         return user

@@ -6,3 +6,5 @@ db.sqlite3
 staticfiles/
 private_uploads/
 media/
+AGENTS.md
+opencode.json

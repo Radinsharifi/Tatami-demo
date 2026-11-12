@@ -1,4 +1,5 @@
 {% load static %}
+{% load persian %}
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
@@ -19,6 +20,7 @@
       <a href="{% url 'store:cart' %}">سبد خرید</a>
       <a href="{% url 'account' %}">حساب کاربری</a>
       {% if user.is_authenticated %}
+      <a class="gem-chip" href="{% url 'gems:history' %}" title="جم‌های من">{{ gem_balance|persian_digits }} جم</a>
       <a href="{% url 'orders:list' %}">سفارش‌ها</a>
       <form class="nav-form" method="post" action="{% url 'accounts:logout' %}">
         {% csrf_token %}

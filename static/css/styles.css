@@ -139,3 +139,27 @@ h1, h2, p { margin-top: 0; }
 }
 .course-cover { display: block; width: 100%; max-height: 420px; margin-block: 20px; border-radius: 4px; object-fit: cover; background: #e8e9e2; }
 .course-video { display: block; width: 100%; max-height: 70vh; margin-block: 20px; border-radius: 4px; background: #20231f; }
+/* --- Gems --- */
+.gem-chip { padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.7); color: var(--ink); font-weight: 700; }
+.gem-hero { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 26px; padding: 22px 24px; border: 1px solid var(--line); border-inline-start: 3px solid var(--accent); background: rgba(255,255,255,.52); }
+.gem-hero-label { color: var(--muted); font-size: 12px; }
+.gem-hero-value { font-size: clamp(34px, 6vw, 52px); line-height: 1; }
+.gem-hero-unit { color: var(--muted); font-size: 13px; }
+.gem-credit { color: var(--green); font-weight: 700; }
+.gem-debit { color: var(--accent); font-weight: 700; }
+.lesson-done { color: var(--green); font-weight: 700; }
+
+/* --- Coach invites --- */
+.panel-links { display: flex; gap: 18px; margin: 0 0 24px; font-size: 13px; }
+.invite-create { width: min(100%, 520px); margin: 0 0 34px; padding: 22px; border: 1px solid var(--line); background: rgba(255,255,255,.4); }
+.invite-create h2 { margin: 0 0 14px; font-size: 16px; }
+.invite-list { margin: 0 0 34px; }
+.invite-card { margin: 0 0 14px; padding: 18px 20px; border: 1px solid var(--line); background: rgba(255,255,255,.52); }
+.invite-head { display: flex; align-items: center; gap: 12px; }
+.invite-code { font-size: 22px; letter-spacing: 3px; }
+.invite-status { padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.invite-status.is-live { background: rgba(47,107,79,.12); color: var(--green); }
+.invite-status.is-off { background: rgba(201,72,49,.12); color: var(--accent); }
+.invite-link { width: 100%; margin: 4px 0 10px; padding: 8px 10px; border: 1px dashed var(--line); background: rgba(255,255,255,.8); color: var(--muted); font: inherit; font-size: 12px; }
+.invite-share-text { margin: 10px 0 2px; color: var(--muted); font-size: 12px; }
+.student-list h2, .invite-list > h2 { margin: 0 0 12px; font-size: 16px; }

@@ -16,6 +16,9 @@ class User(AbstractUser):
 	date_joined = jmodels.jDateTimeField('تاریخ عضویت', default=timezone.now)
 	city = models.CharField('شهر', max_length=100, blank=True)
 	is_profile_complete = models.BooleanField('تکمیل پروفایل', default=True)
+	# Cached Sum(GemTransaction.amount). Never edited directly; the gems service
+	# keeps it in step with the ledger inside the same transaction.
+	gem_balance = models.PositiveIntegerField('موجودی جم', default=0, editable=False)
 
 	class Role(models.TextChoices):
 		STUDENT = 'student', 'هنرجو'

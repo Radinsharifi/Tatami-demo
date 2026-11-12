@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import CoachApplication
+from .models import CoachApplication, CoachInvite
 
 
 class CoachApplicationForm(forms.ModelForm):
@@ -24,3 +24,14 @@ class CoachApplicationForm(forms.ModelForm):
 		if document.size > 10 * 1024 * 1024:
 			raise forms.ValidationError('حجم فایل مدرک نباید بیشتر از ۱۰ مگابایت باشد.')
 		return document
+
+
+class CoachInviteForm(forms.ModelForm):
+	"""Create a code. The code itself and the use counter are system-owned."""
+
+	class Meta:
+		model = CoachInvite
+		fields = ('label', 'max_uses')
+		widgets = {
+			'label': forms.TextInput(attrs={'placeholder': 'مثلاً کلاس شنبه‌ها'}),
+		}

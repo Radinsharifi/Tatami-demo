@@ -9,12 +9,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from accounts.models import User
+from coaches.access import coach_profile_or_redirect
 from coaches.models import CoachApplication, CoachProfile
 
 from .forms import CourseFilterForm, CourseForm, EpisodeForm
-from .models import Course, Enrollment, Episode
+from .models import Course, Enrollment, Episode, EpisodeCompletion
 from .services import purchase_course, user_can_watch
+from .signals import episode_completed
 
 
 def course_list(request):
@@ -62,8 +63,14 @@ def course_detail(request, slug):
 	has_full_access = owner or (user.is_authenticated and user.is_staff)
 
 	episodes = list(course.episodes.all())
+	completed_ids = set()
+	if user.is_authenticated:
+		completed_ids = set(
+			EpisodeCompletion.objects.filter(user=user, episode__course=course).values_list('episode_id', flat=True)
+		)
 	for episode in episodes:
 		episode.can_watch = episode.is_free or enrolled or has_full_access
+		episode.completed = episode.pk in completed_ids
 
 	return render(request, 'club/course_detail.html', {
 		'course': course,
@@ -107,7 +114,36 @@ def episode_play(request, pk):
 	if not user_can_watch(request.user, episode):
 		messages.info(request, 'برای تماشای این قسمت، ابتدا دوره را تهیه کنید.')
 		return redirect(episode.course)
-	return render(request, 'club/episode_play.html', {'episode': episode})
+	completed = request.user.is_authenticated and EpisodeCompletion.objects.filter(
+		user=request.user,
+		episode=episode,
+	).exists()
+	return render(request, 'club/episode_play.html', {'episode': episode, 'completed': completed})
+
+
+@login_required
+@require_POST
+def episode_complete(request, pk):
+	"""Mark an episode finished. Idempotent: the second click changes nothing."""
+	episode = get_object_or_404(
+		Episode.objects.select_related('course', 'course__coach', 'course__coach__application'),
+		pk=pk,
+		course__status=Course.Status.PUBLISHED,
+	)
+	if not user_can_watch(request.user, episode):
+		raise PermissionDenied
+
+	completion, created = EpisodeCompletion.objects.get_or_create(
+		user=request.user,
+		episode=episode,
+	)
+	if created:
+		episode_completed.send(sender=EpisodeCompletion, user=request.user, episode=episode)
+		messages.success(request, 'این قسمت برای شما ثبت شد.')
+	else:
+		messages.info(request, 'این قسمت قبلاً ثبت شده بود.')
+
+	return redirect('club:episode_play', pk=episode.pk)
 
 
 def episode_stream(request, pk):
@@ -136,32 +172,9 @@ def episode_stream(request, pk):
 	return FileResponse(episode.video_file.open('rb'), content_type='video/mp4')
 
 
-def _coach_profile_or_redirect(request):
-	"""The signed-in coach's approved profile, or a redirect response.
-
-	Coaches cannot publish courses before their application is approved, which
-	keeps the public club consistent with the coach directory rules.
-	"""
-	if request.user.role != User.Role.COACH:
-		raise PermissionDenied
-
-	application = getattr(request.user, 'coach_application', None)
-	if application is None:
-		return None, redirect('coaches:apply')
-	if application.status != CoachApplication.Status.APPROVED:
-		messages.info(request, 'پنل دوره‌ها پس از تأیید درخواست مربیگری فعال می‌شود.')
-		return None, redirect('coaches:application_status')
-
-	profile = CoachProfile.objects.filter(application=application).first()
-	if profile is None:
-		messages.info(request, 'پروفایل عمومی شما هنوز ساخته نشده است.')
-		return None, redirect('coaches:application_status')
-	return profile, None
-
-
 @login_required
 def course_dashboard(request):
-	profile, response = _coach_profile_or_redirect(request)
+	profile, response = coach_profile_or_redirect(request)
 	if response:
 		return response
 	return render(request, 'club/coach/course_list.html', {'courses': profile.courses.all()})
@@ -169,7 +182,7 @@ def course_dashboard(request):
 
 @login_required
 def course_create(request):
-	profile, response = _coach_profile_or_redirect(request)
+	profile, response = coach_profile_or_redirect(request)
 	if response:
 		return response
 
@@ -187,7 +200,7 @@ def course_create(request):
 
 @login_required
 def course_edit(request, pk):
-	profile, response = _coach_profile_or_redirect(request)
+	profile, response = coach_profile_or_redirect(request)
 	if response:
 		return response
 
@@ -203,7 +216,7 @@ def course_edit(request, pk):
 
 @login_required
 def episode_create(request, course_pk):
-	profile, response = _coach_profile_or_redirect(request)
+	profile, response = coach_profile_or_redirect(request)
 	if response:
 		return response
 
@@ -221,7 +234,7 @@ def episode_create(request, course_pk):
 
 @login_required
 def episode_edit(request, pk):
-	profile, response = _coach_profile_or_redirect(request)
+	profile, response = coach_profile_or_redirect(request)
 	if response:
 		return response
 

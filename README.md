@@ -31,7 +31,7 @@ DB_PORT=5432
 
 For deployment, set `DJANGO_DEBUG=0`, provide a strong `DJANGO_SECRET_KEY`, and set `DJANGO_ALLOWED_HOSTS` to the site's hostnames. The development secret fallback must not be used in production.
 
-The `accounts.User` model extends Django's `AbstractUser` and uses a unique `phone` number as `USERNAME_FIELD`, normalized to `09xxxxxxxxx` by `accounts/phone.py`. It carries a `student` or `coach` role and an `is_profile_complete` flag. It must remain the configured user model before the first database migration. Django settings use `python-decouple` to read environment variables or `.env`.
+The `accounts.User` model extends Django's `AbstractUser` and uses a unique `phone` number as `USERNAME_FIELD`, normalized to `09xxxxxxxxx` by `accounts/phone.py`. It carries a `student` or `coach` role, an `is_profile_complete` flag, and a cached `gem_balance`. It must remain the configured user model before the first database migration. Django settings use `python-decouple` to read environment variables or `.env`.
 
 Members sign in at `/auth/login/` with a phone number and a five-digit code; there is no password login for them. Accounts are only created after a valid code, with an unusable password, and new users are sent to `/auth/complete-profile/`. In development the code is printed to the `runserver` console by `accounts.sms.ConsoleSMSBackend`. Set `SMS_BACKEND` to a real backend before `DJANGO_DEBUG=0`. Codes expire after 120 seconds, allow five attempts, and are rate-limited through Django's cache; configure a shared `CACHES` backend before running multiple workers.
 
@@ -50,7 +50,9 @@ Members sign in at `/auth/login/` with a phone number and a five-digit code; the
 - A mock payment gateway (`orders/gateways/mock.py`) that follows the real request/verify protocol so a provider can be swapped in later.
 - A virtual club: published courses with coach/level/search filters, a free first episode, paid episodes behind an `Enrollment`, and a coach panel where new courses wait for admin review.
 - Private course videos served only by an access-checked view, with no public URL and an optional Nginx `X-Accel-Redirect` handoff.
+- A gem ledger: admin-editable `GemRule` rows award gems for profile completion, finished episodes, and settled shop orders; `User.gem_balance` is a cache of `Sum(amount)`, and `/account/gems/` shows the history.
+- Coach invite codes: a coach creates an 8-character code, shares `/coaches/join/<code>/`, and the student appears in `/coach/students/`.
 
-The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The currency is Toman. `SHIPPING_FLAT_RATE` defaults to a placeholder 50,000 until the real flat price is confirmed. There is no real payment provider yet: `PAYMENT_GATEWAY` points at the mock, which refuses to run unless `PAYMENT_ALLOW_MOCK` is enabled. Coach revenue share and payouts, the gem ledger, and club geo search are not implemented.
+The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The currency is Toman. `SHIPPING_FLAT_RATE` defaults to a placeholder 50,000 until the real flat price is confirmed. There is no real payment provider yet: `PAYMENT_GATEWAY` points at the mock, which refuses to run unless `PAYMENT_ALLOW_MOCK` is enabled. Coach revenue share and payouts, a gem spend surface (checkout does not discount with gems yet), and club geo search are not implemented.
 
 For frontend/backend route, form, template, and collaboration conventions, see [FRONTEND_BACKEND_HANDOFF.md](FRONTEND_BACKEND_HANDOFF.md).

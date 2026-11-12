@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from django_jalali.admin.filters import JDateFieldListFilter
 
 # Register your models here.
-from .models import CoachApplication, CoachProfile
+from .models import CoachApplication, CoachInvite, CoachProfile, CoachStudent
 
 
 @admin.register(CoachApplication)
@@ -54,3 +54,24 @@ class CoachProfileAdmin(admin.ModelAdmin):
 	list_filter = ('is_published',)
 	search_fields = ('display_name', 'application__user__username')
 	readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(CoachInvite)
+class CoachInviteAdmin(admin.ModelAdmin):
+	list_display = ('code', 'coach', 'label', 'uses', 'max_uses', 'is_active', 'expires_at', 'created_at')
+	list_filter = ('is_active', ('created_at', JDateFieldListFilter))
+	search_fields = ('code', 'label', 'coach__display_name')
+	readonly_fields = ('code', 'uses', 'created_at')
+	fields = ('coach', 'code', 'label', 'max_uses', 'uses', 'is_active', 'expires_at', 'created_at')
+
+
+@admin.register(CoachStudent)
+class CoachStudentAdmin(admin.ModelAdmin):
+	list_display = ('coach', 'student', 'invite', 'created_at')
+	list_filter = (('created_at', JDateFieldListFilter),)
+	search_fields = ('coach__display_name', 'student__phone', 'student__first_name')
+	readonly_fields = ('coach', 'student', 'invite', 'created_at')
+
+	def has_add_permission(self, request):
+		# Rows are created only by redeeming a code, which also bumps `uses`.
+		return False

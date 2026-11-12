@@ -25,7 +25,10 @@
       <article class="cart-row">
         <div class="cart-item-name">
           <h2>{{ episode.order }}. {{ episode.title }}</h2>
-          <p>{{ episode.duration|duration_mmss|persian_digits }} دقیقه{% if episode.is_free %} — رایگان{% endif %}</p>
+          <p>
+            {{ episode.duration|duration_mmss|persian_digits }} دقیقه{% if episode.is_free %} — رایگان{% endif %}
+            {% if episode.completed %} — <span class="lesson-done">تمام‌شده</span>{% endif %}
+          </p>
         </div>
         {% if episode.can_watch %}
           <a class="text-link" href="{% url 'club:episode_play' episode.pk %}">تماشا</a>

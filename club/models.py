@@ -101,6 +101,45 @@ class Episode(models.Model):
 		return f'{self.course.title} — {self.order}. {self.title}'
 
 
+class EpisodeCompletion(models.Model):
+	"""A user marked this episode as finished.
+
+	Separate from the gem ledger on purpose: watching progress is a learning
+	fact, and the reward is a side effect that may be switched off in `GemRule`
+	without losing the fact that the episode was completed.
+	"""
+
+	objects = jmodels.jManager()
+
+	user = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		verbose_name='کاربر',
+		on_delete=models.CASCADE,
+		related_name='episode_completions',
+	)
+	episode = models.ForeignKey(
+		Episode,
+		verbose_name='قسمت',
+		on_delete=models.CASCADE,
+		related_name='completions',
+	)
+	created_at = jmodels.jDateTimeField('زمان', auto_now_add=True)
+
+	class Meta:
+		verbose_name = 'اتمام قسمت'
+		verbose_name_plural = 'اتمام قسمت‌ها'
+		ordering = ['-created_at']
+		constraints = [
+			models.UniqueConstraint(
+				fields=['user', 'episode'],
+				name='unique_completion_per_user_episode',
+			),
+		]
+
+	def __str__(self):
+		return f'{self.user} — {self.episode}'
+
+
 class Enrollment(models.Model):
 	"""Proof that a user bought (or was granted) a course."""
 

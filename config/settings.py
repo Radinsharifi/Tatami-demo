@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'store.apps.StoreConfig',
     'orders.apps.OrdersConfig',
     'club.apps.ClubConfig',
+    'gems.apps.GemsConfig',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -103,6 +104,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'accounts.context_processors.call_center_lead_count',
+                'gems.context_processors.gem_balance',
             ],
         },
     },
