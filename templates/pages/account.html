@@ -17,12 +17,12 @@
       <div class="role-row">
         <span class="role-number">۰۱</span>
         <div><h2>هنرجو</h2><p>مربیان را ببین و سفارش‌هایت را پیگیری کن.</p></div>
-        <a class="role-action" href="{% url 'accounts:register' %}?role=student">ثبت‌نام</a>
+        <a class="role-action" href="{% url 'phone_auth:login' %}?role=student">ورود / ثبت‌نام</a>
       </div>
       <div class="role-row">
         <span class="role-number">۰۲</span>
         <div><h2>مربی</h2><p>برای بررسی درخواست مربیگری اقدام کن.</p></div>
-        <a class="role-action" href="{% url 'accounts:register' %}?role=coach">ثبت‌نام</a>
+        <a class="role-action" href="{% url 'phone_auth:login' %}?role=coach">ورود / ثبت‌نام</a>
       </div>
       <div class="role-row">
         <span class="role-number">۰۳</span>
@@ -30,7 +30,7 @@
         <span class="role-status">نمایشی</span>
       </div>
     </section>
-    <p class="account-login">قبلاً ثبت‌نام کرده‌ای؟ <a href="{% url 'accounts:login' %}">وارد شو</a></p>
+    <p class="account-login">حساب کاربری داری؟ <a href="{% url 'phone_auth:login' %}">وارد شو</a></p>
   {% endif %}
 </main>
 {% endblock %}

@@ -55,6 +55,14 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'accounts.User'
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'account'
+SMS_BACKEND = config(
+    'SMS_BACKEND',
+    default='accounts.sms.ConsoleSMSBackend' if DEBUG else '',
+)
+SESSION_COOKIE_AGE = 30 * 24 * 60 * 60
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -78,6 +86,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'accounts.context_processors.call_center_lead_count',
             ],
         },
     },

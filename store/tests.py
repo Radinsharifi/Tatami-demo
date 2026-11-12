@@ -101,7 +101,7 @@ class StoreWorkflowTests(TestCase):
 class StoreAdminLocalizationTests(TestCase):
 	def test_cart_admin_changelist_renders_jalali_date_filter(self):
 		staff = get_user_model().objects.create_superuser(
-			username='store-date-admin',
+			phone='09120000103',
 			password='Safe-Training-Password-914!',
 		)
 		self.client.force_login(staff)

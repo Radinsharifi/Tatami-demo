@@ -118,7 +118,7 @@ class CoachWorkflowTests(TestCase):
 		self.assertEqual(self.client.get(url).status_code, 302)
 
 		staff = get_user_model().objects.create_superuser(
-			username='site-admin',
+			phone='09120000120',
 			password='Safe-Training-Password-914!',
 		)
 		self.client.force_login(staff)
@@ -148,7 +148,7 @@ class CoachWorkflowTests(TestCase):
 class CoachAdminLocalizationTests(TestCase):
 	def test_coach_admin_changelist_renders_jalali_date_filters(self):
 		staff = get_user_model().objects.create_superuser(
-			username='date-admin',
+			phone='09120000150',
 			password='Safe-Training-Password-914!',
 		)
 		self.client.force_login(staff)
