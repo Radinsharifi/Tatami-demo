@@ -1,6 +1,8 @@
 from django import forms
 
-from .models import CoachApplication, CoachInvite
+from coaches.storage import PrivateFileInput
+
+from .models import CoachApplication, CoachInvite, CoachProfile
 
 
 class CoachApplicationForm(forms.ModelForm):
@@ -17,6 +19,8 @@ class CoachApplicationForm(forms.ModelForm):
 		widgets = {
 			'specializations': forms.Textarea(attrs={'rows': 3}),
 			'certificate_details': forms.Textarea(attrs={'rows': 3}),
+			# The certificate is private; the default widget would call `.url()`.
+			'certificate_document': PrivateFileInput,
 		}
 
 	def clean_certificate_document(self):
@@ -34,4 +38,20 @@ class CoachInviteForm(forms.ModelForm):
 		fields = ('label', 'max_uses')
 		widgets = {
 			'label': forms.TextInput(attrs={'placeholder': 'مثلاً کلاس شنبه‌ها'}),
+		}
+
+
+class CoachProfileForm(forms.ModelForm):
+	"""The coach's own public profile.
+
+	`is_published` is deliberately absent: the team still decides when the
+	profile goes live, so the coach can prepare it without publishing.
+	"""
+
+	class Meta:
+		model = CoachProfile
+		fields = ('display_name', 'headline', 'biography', 'belt', 'club', 'avatar')
+		widgets = {
+			'headline': forms.TextInput(attrs={'placeholder': 'مثلاً مربی کاتا و کیهوکوشین'}),
+			'biography': forms.Textarea(attrs={'rows': 5}),
 		}

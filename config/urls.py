@@ -20,6 +20,8 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
 
+from accounts import views as account_views
+
 urlpatterns = [
     path('', TemplateView.as_view(template_name='pages/home.html'), name='home'),
     path('coaches/', include('coaches.urls')),
@@ -29,7 +31,7 @@ urlpatterns = [
     path('coach/', include('club.coach_urls')),
     path('coach/', include('coaches.coach_urls')),
     path('account/gems/', include('gems.urls')),
-    path('account/', TemplateView.as_view(template_name='pages/account.html'), name='account'),
+    path('account/', account_views.account, name='account'),
     path('accounts/', include('accounts.urls')),
     path('auth/', include('accounts.auth_urls')),
     path('admin/', admin.site.urls),

@@ -43,11 +43,13 @@ class ClubTestCase(TestCase):
 		self.application.save()
 		self.addCleanup(self.application.certificate_document.delete, save=False)
 
-		self.profile = CoachProfile.objects.create(
+		self.profile, _ = CoachProfile.objects.update_or_create(
 			application=self.application,
-			display_name='مربی آزمایشی',
-			biography='معرفی آزمایشی',
-			is_published=True,
+			defaults={
+				'display_name': 'مربی آزمایشی',
+				'biography': 'معرفی آزمایشی',
+				'is_published': True,
+			},
 		)
 		self.course = Course.objects.create(
 			coach=self.profile,
@@ -304,11 +306,13 @@ class CoachPanelTests(ClubTestCase):
 		other_application.full_clean()
 		other_application.save()
 		self.addCleanup(other_application.certificate_document.delete, save=False)
-		other_profile = CoachProfile.objects.create(
+		other_profile, _ = CoachProfile.objects.update_or_create(
 			application=other_application,
-			display_name='مربی دیگر',
-			biography='…',
-			is_published=True,
+			defaults={
+				'display_name': 'مربی دیگر',
+				'biography': '…',
+				'is_published': True,
+			},
 		)
 		Course.objects.create(
 			coach=other_profile,
@@ -344,11 +348,13 @@ class CoachPanelTests(ClubTestCase):
 		other_application.full_clean()
 		other_application.save()
 		self.addCleanup(other_application.certificate_document.delete, save=False)
-		other_profile = CoachProfile.objects.create(
+		other_profile, _ = CoachProfile.objects.update_or_create(
 			application=other_application,
-			display_name='مربی سوم',
-			biography='…',
-			is_published=True,
+			defaults={
+				'display_name': 'مربی سوم',
+				'biography': '…',
+				'is_published': True,
+			},
 		)
 		foreign = Course.objects.create(
 			coach=other_profile,
@@ -437,11 +443,13 @@ class CoachPanelTests(ClubTestCase):
 		other_application.full_clean()
 		other_application.save()
 		self.addCleanup(other_application.certificate_document.delete, save=False)
-		other_profile = CoachProfile.objects.create(
+		other_profile, _ = CoachProfile.objects.update_or_create(
 			application=other_application,
-			display_name='مربی چهارم',
-			biography='…',
-			is_published=True,
+			defaults={
+				'display_name': 'مربی چهارم',
+				'biography': '…',
+				'is_published': True,
+			},
 		)
 		foreign = Course.objects.create(
 			coach=other_profile,

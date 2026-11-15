@@ -180,11 +180,13 @@ def _make_profile(user, display_name='مربی کد'):
 	)
 	application.full_clean()
 	application.save()
-	profile = CoachProfile.objects.create(
+	profile, _ = CoachProfile.objects.update_or_create(
 		application=application,
-		display_name=display_name,
-		biography='معرفی آزمایشی',
-		is_published=True,
+		defaults={
+			'display_name': display_name,
+			'biography': 'معرفی آزمایشی',
+			'is_published': True,
+		},
 	)
 	return profile, application
 
@@ -325,4 +327,152 @@ class CoachInviteTests(TestCase):
 
 		self.assertRedirects(response, reverse('coaches:join_coach', args=[self.invite.code]))
 		self.assertFalse(CoachStudent.objects.exists())
+
+
+class CoachHubTests(TestCase):
+	def setUp(self):
+		self.coach_user = _make_user('hub-coach', role=get_user_model().Role.COACH)
+		self.client.force_login(self.coach_user)
+
+	def make_application(self, status, reason=''):
+		application = CoachApplication(
+			user=self.coach_user,
+			coaching_level='Advanced',
+			specializations='Taekwondo',
+			years_experience=5,
+			club_name='باشگاه آزمایشی',
+			certificate_details='مدرک مربیگری',
+			certificate_document=SimpleUploadedFile('hub.pdf', b'%PDF-1.4 hub'),
+			status=status,
+			rejection_reason=reason,
+		)
+		application.full_clean()
+		application.save()
+		self.addCleanup(application.certificate_document.delete, save=False)
+		return application
+
+	def approve(self):
+		application = self.make_application(CoachApplication.Status.PENDING_REVIEW)
+		application.status = CoachApplication.Status.APPROVED
+		application.save()
+		return application
+
+	def test_account_offers_the_form_before_any_request(self):
+		response = self.client.get(reverse('account'))
+
+		self.assertContains(response, 'ثبت درخواست مربیگری')
+		self.assertContains(response, 'ثبت نشده')
+
+	def test_pending_status_is_visible_without_opening_the_status_page(self):
+		self.make_application(CoachApplication.Status.PENDING_REVIEW)
+
+		response = self.client.get(reverse('account'))
+
+		self.assertContains(response, 'در انتظار بررسی')
+		self.assertNotContains(response, 'ثبت درخواست مربیگری')
+
+	def test_rejected_request_shows_the_reason_and_a_resubmit_link(self):
+		self.make_application(CoachApplication.Status.REJECTED, 'مدرک ناخوانا بود.')
+
+		response = self.client.get(reverse('account'))
+
+		self.assertContains(response, 'مدرک ناخوانا بود.')
+		self.assertContains(response, 'ویرایش و ارسال دوباره')
+
+	def test_rejected_request_can_be_edited_and_resent(self):
+		application = self.make_application(CoachApplication.Status.REJECTED, 'ناقص بود.')
+		original_submitted_at = application.submitted_at
+
+		response = self.client.get(reverse('coaches:apply'))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'ارسال دوباره')
+
+		response = self.client.post(reverse('coaches:apply'), {
+			'coaching_level': 'Advanced',
+			'specializations': 'Kata',
+			'years_experience': 9,
+			'club_name': 'باشگاه تازه',
+			'certificate_details': 'مدرک کامل',
+		})
+
+		self.assertRedirects(response, reverse('coaches:application_status'))
+		application.refresh_from_db()
+		self.assertEqual(application.status, CoachApplication.Status.PENDING_REVIEW)
+		self.assertEqual(application.rejection_reason, '')
+		self.assertIsNone(application.reviewed_at)
+		self.assertEqual(application.specializations, 'Kata')
+		self.assertEqual(application.club_name, 'باشگاه تازه')
+		self.assertGreater(application.submitted_at, original_submitted_at)
+		self.assertEqual(CoachApplication.objects.filter(user=self.coach_user).count(), 1)
+
+	def test_pending_request_cannot_be_edited(self):
+		self.make_application(CoachApplication.Status.PENDING_REVIEW)
+
+		response = self.client.get(reverse('coaches:apply'))
+
+		self.assertRedirects(response, reverse('coaches:application_status'))
+
+	def test_approved_request_cannot_be_edited(self):
+		self.approve()
+
+		response = self.client.get(reverse('coaches:apply'))
+
+		self.assertRedirects(response, reverse('coaches:application_status'))
+
+	def test_approval_creates_an_unpublished_profile(self):
+		application = self.approve()
+
+		profile = CoachProfile.objects.get(application=application)
+
+		self.assertFalse(profile.is_published)
+
+	def test_approved_account_lists_the_panels(self):
+		self.approve()
+
+		response = self.client.get(reverse('account'))
+
+		self.assertContains(response, reverse('coach_panel:course_list'))
+		self.assertContains(response, reverse('coach_students:list'))
+		self.assertContains(response, reverse('coaches:portfolio'))
+
+	def test_portfolio_renders_and_saves_without_publishing(self):
+		application = self.approve()
+
+		response = self.client.get(reverse('coaches:portfolio'))
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'پروفایل عمومی من')
+
+		response = self.client.post(reverse('coaches:portfolio'), {
+			'display_name': 'مربی هاب',
+			'headline': 'مربی کاتا',
+			'biography': 'معرفی تازه',
+			'belt': 'دان ۳',
+			'club': 'باشگاه مرکزی',
+		})
+
+		self.assertRedirects(response, reverse('coaches:portfolio'))
+		profile = CoachProfile.objects.get(application=application)
+		self.assertEqual(profile.display_name, 'مربی هاب')
+		self.assertEqual(profile.belt, 'دان ۳')
+		self.assertFalse(profile.is_published)
+
+	def test_portfolio_refuses_a_student(self):
+		self.client.force_login(_make_user('portfolio-student'))
+
+		self.assertEqual(self.client.get(reverse('coaches:portfolio')).status_code, 403)
+
+	def test_portfolio_redirects_a_pending_coach_to_the_status_page(self):
+		self.make_application(CoachApplication.Status.PENDING_REVIEW)
+
+		response = self.client.get(reverse('coaches:portfolio'))
+
+		self.assertRedirects(response, reverse('coaches:application_status'))
+
+	def test_status_page_offers_a_resubmit_button_when_rejected(self):
+		self.make_application(CoachApplication.Status.REJECTED, 'مدرک ناخوانا بود.')
+
+		response = self.client.get(reverse('coaches:application_status'))
+
+		self.assertContains(response, 'مدرک ناخوانا بود.')
+		self.assertContains(response, 'ویرایش و ارسال دوباره')
 

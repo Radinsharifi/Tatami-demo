@@ -154,11 +154,13 @@ class EpisodeCompletionRewardTests(TestCase):
 		application.save()
 		self.addCleanup(application.certificate_document.delete, save=False)
 
-		profile = CoachProfile.objects.create(
+		profile, _ = CoachProfile.objects.update_or_create(
 			application=application,
-			display_name='مربی آزمایشی',
-			biography='…',
-			is_published=True,
+			defaults={
+				'display_name': 'مربی آزمایشی',
+				'biography': '…',
+				'is_published': True,
+			},
 		)
 		course = Course.objects.create(
 			coach=profile,

@@ -6,11 +6,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
 from .access import coach_profile_or_redirect
-from .forms import CoachApplicationForm, CoachInviteForm
+from .forms import CoachApplicationForm, CoachInviteForm, CoachProfileForm
 from .invites import InviteError, generate_code, redeem
 from .models import CoachApplication, CoachInvite, CoachProfile
 
@@ -19,27 +20,48 @@ from .models import CoachApplication, CoachInvite, CoachProfile
 def apply(request):
 	if request.user.role != User.Role.COACH:
 		raise PermissionDenied
-	if CoachApplication.objects.filter(user=request.user).exists():
+
+	application = getattr(request.user, 'coach_application', None)
+	# Pending and approved requests are read-only here; only a rejection opens
+	# the form again, and it reuses the same row so the certificate survives.
+	if application is not None and application.status != CoachApplication.Status.REJECTED:
 		return redirect('coaches:application_status')
 
+	resubmitting = application is not None
 	if request.method == 'POST':
-		form = CoachApplicationForm(request.POST, request.FILES)
+		form = CoachApplicationForm(request.POST, request.FILES, instance=application)
 		if form.is_valid():
 			application = form.save(commit=False)
 			application.user = request.user
+			application.status = CoachApplication.Status.PENDING_REVIEW
+			application.rejection_reason = ''
+			application.reviewed_at = None
 			application.full_clean()
 			application.save()
+			if resubmitting:
+				# `auto_now_add` only fires on insert, so record the new attempt.
+				CoachApplication.objects.filter(pk=application.pk).update(submitted_at=timezone.now())
+				messages.success(request, 'درخواست شما با تغییرات تازه دوباره ارسال شد.')
+			else:
+				messages.success(request, 'درخواست شما ثبت شد و در انتظار بررسی است.')
 			return redirect('coaches:application_status')
 	else:
-		form = CoachApplicationForm()
+		form = CoachApplicationForm(instance=application)
 
-	return render(request, 'coaches/apply.html', {'form': form})
+	return render(request, 'coaches/apply.html', {
+		'form': form,
+		'resubmitting': resubmitting,
+		'application': application,
+	})
 
 
 @login_required
 def application_status(request):
 	application = get_object_or_404(CoachApplication, user=request.user)
-	return render(request, 'coaches/application_status.html', {'application': application})
+	return render(request, 'coaches/application_status.html', {
+		'application': application,
+		'profile': getattr(application, 'profile', None),
+	})
 
 
 def directory(request):
@@ -71,6 +93,29 @@ def certificate_download(request, application_id):
 		as_attachment=True,
 		filename=Path(application.certificate_document.name).name,
 	)
+
+
+@login_required
+def portfolio(request):
+	"""Edit the coach's own public profile.
+
+	Publication is not on this form: a coach can prepare the page, and the team
+	flips `is_published` in Django Admin when it is ready.
+	"""
+	profile, response = coach_profile_or_redirect(request)
+	if response:
+		return response
+
+	form = CoachProfileForm(request.POST or None, request.FILES or None, instance=profile)
+	if request.method == 'POST' and form.is_valid():
+		form.save()
+		messages.success(request, 'پروفایل شما ذخیره شد. انتشار آن را تیم تاتامی پلاس بررسی می‌کند.')
+		return redirect('coaches:portfolio')
+
+	return render(request, 'coaches/portfolio.html', {
+		'profile': profile,
+		'form': form,
+	})
 
 
 @login_required

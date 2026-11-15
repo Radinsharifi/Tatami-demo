@@ -126,3 +126,22 @@ def complete_profile(request):
 	else:
 		form = ProfileCompletionForm(initial={'role': request.user.role})
 	return render(request, 'accounts/complete_profile.html', {'form': form})
+
+
+def account(request):
+	"""The signed-in landing page, including the coach request's current state.
+
+	`accounts` must not import `coaches`, so the reverse OneToOne is read with
+	`getattr`; a missing application is simply "has not applied yet".
+	"""
+	application = None
+	profile = None
+	if request.user.is_authenticated and request.user.role == User.Role.COACH:
+		application = getattr(request.user, 'coach_application', None)
+		if application is not None:
+			profile = getattr(application, 'profile', None)
+
+	return render(request, 'pages/account.html', {
+		'coach_application': application,
+		'coach_profile': profile,
+	})

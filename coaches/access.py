@@ -26,6 +26,17 @@ def coach_profile_or_redirect(request):
 
 	profile = CoachProfile.objects.filter(application=application).first()
 	if profile is None:
-		messages.info(request, 'پروفایل عمومی شما هنوز ساخته نشده است.')
-		return None, redirect('coaches:application_status')
+		# Legacy approved rows predate the auto-created profile. Create the
+		# shell here so the panels never dead-end on "profile not created yet".
+		name = (
+			application.user.get_full_name()
+			or application.user.first_name
+			or application.user.phone
+			or 'مربی تاتامی پلاس'
+		)
+		profile = CoachProfile.objects.create(
+			application=application,
+			display_name=name[:100],
+			biography='',
+		)
 	return profile, None

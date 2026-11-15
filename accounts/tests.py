@@ -216,3 +216,39 @@ class CoachSignupLeadTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, 'سرنخ‌های جدید مربی: 1')
 		self.assertContains(response, coach.phone)
+
+
+class AccountPageTests(TestCase):
+	def test_guest_still_sees_the_role_chooser(self):
+		response = self.client.get(reverse('account'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'مسیرت را انتخاب کن')
+
+	def test_student_page_renders_the_quick_links(self):
+		user = get_user_model().objects.create_user(
+			phone='09120000010',
+			first_name='هنرجوی آزمایشی',
+			is_profile_complete=True,
+		)
+		self.client.force_login(user)
+
+		response = self.client.get(reverse('account'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'هنرجوی آزمایشی')
+		self.assertContains(response, reverse('orders:list'))
+		self.assertContains(response, reverse('gems:history'))
+		self.assertContains(response, reverse('club:course_list'))
+
+	def test_phone_is_shown_when_no_name_is_set(self):
+		user = get_user_model().objects.create_user(
+			phone='09120000011',
+			is_profile_complete=True,
+		)
+		self.client.force_login(user)
+
+		response = self.client.get(reverse('account'))
+
+		self.assertContains(response, '۰۹۱۲۰۰۰۰۰۱۱')  # Persian digits of the phone
+
