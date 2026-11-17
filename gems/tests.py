@@ -6,6 +6,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from club.models import Course, Episode
+from coaches.invites import ensure_personal_invite, redeem
 from coaches.models import CoachApplication, CoachProfile
 from orders.models import Address, Order, Payment
 from store.models import Cart, CartItem, Category, Product, ProductVariant
@@ -126,6 +127,8 @@ class ProfileCompletionRewardTests(TestCase):
 			'name': 'هنرجوی تازه',
 			'city': 'تهران',
 			'role': get_user_model().Role.STUDENT,
+			'password': 'Safe-Training-Password-914!',
+			'password_confirm': 'Safe-Training-Password-914!',
 		})
 
 		self.assertEqual(response.status_code, 302)
@@ -299,3 +302,86 @@ class GemPageTests(TestCase):
 
 		self.assertContains(self.client.get(reverse('home')), 'gem-chip')
 		self.assertContains(self.client.get(reverse('home')), '۵۰ جم')
+
+
+class InviteRewardTests(TestCase):
+	def setUp(self):
+		user_model = get_user_model()
+		self.coach_user = make_user('invite-coach', role=user_model.Role.COACH)
+		application = CoachApplication(
+			user=self.coach_user,
+			coaching_level='Advanced',
+			specializations='Taekwondo',
+			years_experience=8,
+			club_name='باشگاه آزمایشی',
+			certificate_details='مدرک مربیگری',
+			certificate_document=SimpleUploadedFile('invite.pdf', b'%PDF-1.4 invite'),
+			status=CoachApplication.Status.APPROVED,
+		)
+		application.full_clean()
+		application.save()
+		self.addCleanup(application.certificate_document.delete, save=False)
+
+		self.profile = CoachProfile.objects.get(application=application)
+		self.invite = ensure_personal_invite(self.profile)
+		self.student = make_user('invite-student')
+
+	def set_amounts(self, student_amount, coach_amount):
+		GemRule.objects.update_or_create(
+			reason=GemReason.INVITE_STUDENT,
+			defaults={
+				'amount': student_amount,
+				'is_percentage': False,
+				'daily_limit': 0,
+				'is_active': True,
+			},
+		)
+		GemRule.objects.update_or_create(
+			reason=GemReason.INVITE_COACH,
+			defaults={
+				'amount': coach_amount,
+				'is_percentage': False,
+				'daily_limit': 0,
+				'is_active': True,
+			},
+		)
+
+	def test_each_side_is_paid_from_its_own_rule(self):
+		self.set_amounts(student_amount=20, coach_amount=5)
+
+		link, created = redeem(self.invite.code, self.student)
+
+		self.assertTrue(created)
+		self.student.refresh_from_db()
+		self.coach_user.refresh_from_db()
+		self.assertEqual(self.student.gem_balance, 20)
+		self.assertEqual(self.coach_user.gem_balance, 5)
+		self.assertEqual(
+			GemTransaction.objects.get(user=self.student, reason=GemReason.INVITE_STUDENT).ref_id,
+			str(link.pk),
+		)
+
+	def test_seeded_rules_start_off_and_pay_nothing(self):
+		link, _ = redeem(self.invite.code, self.student)
+
+		self.student.refresh_from_db()
+		self.coach_user.refresh_from_db()
+		self.assertEqual(self.student.gem_balance, 0)
+		self.assertEqual(self.coach_user.gem_balance, 0)
+		self.assertFalse(GemTransaction.objects.filter(ref_type='coachstudent', ref_id=str(link.pk)).exists())
+
+	def test_redeeming_twice_never_pays_twice(self):
+		self.set_amounts(student_amount=20, coach_amount=5)
+
+		redeem(self.invite.code, self.student)
+		_, created = redeem(self.invite.code, self.student)
+
+		self.assertFalse(created)
+		self.student.refresh_from_db()
+		self.coach_user.refresh_from_db()
+		self.assertEqual(self.student.gem_balance, 20)
+		self.assertEqual(self.coach_user.gem_balance, 5)
+		self.assertEqual(
+			GemTransaction.objects.filter(reason__in=[GemReason.INVITE_STUDENT, GemReason.INVITE_COACH]).count(),
+			2,
+		)

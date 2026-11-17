@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 
 from accounts.models import User
 
+from .invites import ensure_personal_invite
 from .models import CoachApplication, CoachProfile
 
 
@@ -39,4 +40,6 @@ def coach_profile_or_redirect(request):
 			display_name=name[:100],
 			biography='',
 		)
+	# Also covers coaches approved before personal codes existed.
+	ensure_personal_invite(profile)
 	return profile, None

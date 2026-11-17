@@ -4,10 +4,12 @@ from django.db import transaction
 from django.db.models import F
 
 from .models import CoachInvite, CoachStudent
+from .signals import student_attached
 
 # No I, O, 0, or 1: codes are read off a screen and typed by hand.
 CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 CODE_LENGTH = 8
+PERSONAL_INVITE_LABEL = 'کد شخصی'
 
 
 class InviteError(Exception):
@@ -21,6 +23,23 @@ def generate_code():
 		if not CoachInvite.objects.filter(code=code).exists():
 			return code
 	raise InviteError('ساخت کد یکتا ممکن نشد. دوباره تلاش کنید.')
+
+
+def ensure_personal_invite(profile):
+	"""Give every coach one permanent code, so sharing never needs setup.
+
+	Campaign codes stay optional; this one has no use limit and is created on
+	approval (or lazily the first time a legacy coach opens a panel).
+	"""
+	invite = CoachInvite.objects.filter(coach=profile, label=PERSONAL_INVITE_LABEL).first()
+	if invite is not None:
+		return invite
+	return CoachInvite.objects.create(
+		coach=profile,
+		code=generate_code(),
+		label=PERSONAL_INVITE_LABEL,
+		max_uses=0,
+	)
 
 
 @transaction.atomic
@@ -57,4 +76,13 @@ def redeem(code, user):
 
 	link = CoachStudent.objects.create(coach=invite.coach, student=user, invite=invite)
 	CoachInvite.objects.filter(pk=invite.pk).update(uses=F('uses') + 1)
+	# Both sides may earn gems, with different amounts per rule. The ledger is
+	# idempotent on this link, so a replayed join cannot pay twice.
+	student_attached.send(
+		sender=CoachStudent,
+		link=link,
+		student=user,
+		coach=invite.coach,
+		invite=invite,
+	)
 	return link, True

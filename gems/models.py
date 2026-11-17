@@ -14,6 +14,8 @@ class GemReason(models.TextChoices):
 	EPISODE_COMPLETE = 'episode_complete', 'پایان یک قسمت'
 	PURCHASE = 'purchase', 'خرید از فروشگاه'
 	ORDER_DISCOUNT = 'order_discount', 'تخفیف سفارش'
+	INVITE_STUDENT = 'invite_student', 'پیوستن با کد دعوت'
+	INVITE_COACH = 'invite_coach', 'هنرجوی تازه با کد دعوت'
 	MANUAL = 'manual', 'اصلاح دستی'
 
 

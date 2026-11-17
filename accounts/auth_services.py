@@ -76,41 +76,54 @@ def send_otp(phone, ip_address=None):
 	return otp
 
 
+def consume_otp(phone, code):
+	"""Check and burn a code without creating a user.
+
+	Used by password reset, where an unknown phone must never become an
+	account. `verify_otp` keeps its signup behaviour on top of this.
+	"""
+	valid = _check_otp(phone, code)
+	if not valid:
+		raise OTPInvalid
+	return True
+
+
 def verify_otp(phone, code, role):
-	invalid = False
-	user = None
-	created = False
+	consume_otp(phone, code)
+	with transaction.atomic():
+		user, created = User.objects.get_or_create(
+			phone=phone,
+			defaults={
+				'username': phone,
+				'password': make_password(None),
+				'role': role,
+				'is_profile_complete': False,
+			},
+		)
+	return user, created
+
+
+def _check_otp(phone, code):
+	"""Consume a valid code. Returns True only when it matched."""
 	with transaction.atomic():
 		otp = OTPCode.objects.select_for_update().filter(
 			phone=phone,
 			is_used=False,
 		).order_by('-created_at').first()
 		if otp is None:
-			invalid = True
-		elif otp.expires_at <= timezone.now() or otp.attempts >= 5:
+			return False
+		if otp.expires_at <= timezone.now() or otp.attempts >= 5:
 			otp.is_used = True
 			otp.save(update_fields=['is_used'])
-			invalid = True
-		else:
-			otp.attempts += 1
-			if not otp.verify(code):
-				if otp.attempts >= 5:
-					otp.is_used = True
-				otp.save(update_fields=['attempts', 'is_used'])
-				invalid = True
-			else:
-				otp.is_used = True
-				otp.save(update_fields=['attempts', 'is_used'])
-				user, created = User.objects.get_or_create(
-					phone=phone,
-					defaults={
-						'username': phone,
-						'password': make_password(None),
-						'role': role,
-						'is_profile_complete': False,
-					},
-				)
+			return False
 
-	if invalid:
-		raise OTPInvalid
-	return user, created
+		otp.attempts += 1
+		if not otp.verify(code):
+			if otp.attempts >= 5:
+				otp.is_used = True
+			otp.save(update_fields=['attempts', 'is_used'])
+			return False
+
+		otp.is_used = True
+		otp.save(update_fields=['attempts', 'is_used'])
+		return True

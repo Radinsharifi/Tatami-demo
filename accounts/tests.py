@@ -41,7 +41,7 @@ class AuthenticationFlowTests(TestCase):
 		FakeSMSBackend.messages.clear()
 
 	def request_code(self, phone=None, role='student', next_url=''):
-		return self.client.post(reverse('phone_auth:login'), {
+		return self.client.post(reverse('phone_auth:sms_login'), {
 			'phone': phone or self.phone,
 			'role': role,
 			'next_url': next_url,
@@ -122,18 +122,23 @@ class AuthenticationFlowTests(TestCase):
 			'name': 'هنرجوی آزمایشی',
 			'city': 'کرج',
 			'role': 'student',
+			'password': 'Safe-Training-Password-914!',
+			'password_confirm': 'Safe-Training-Password-914!',
 		})
 
 		self.assertRedirects(response, '/store/')
 		user = get_user_model().objects.get(phone=self.phone)
 		self.assertTrue(user.is_profile_complete)
 		self.assertEqual(user.city, 'کرج')
+		self.assertTrue(user.has_usable_password())
+		self.assertTrue(user.check_password('Safe-Training-Password-914!'))
 
 	def test_existing_phone_account_keeps_its_role(self):
 		user = get_user_model().objects.create_user(
 			phone=self.phone,
 			role=get_user_model().Role.STUDENT,
 			is_profile_complete=True,
+			password='Existing-Password-914!',
 		)
 		self.request_code(role='coach')
 
@@ -164,6 +169,132 @@ class AuthenticationFlowTests(TestCase):
 
 		self.assertRedirects(response, '/')
 		self.assertNotIn('_auth_user_id', self.client.session)
+
+
+@override_settings(SMS_BACKEND='accounts.sms.FakeSMSBackend')
+class PasswordLoginTests(TestCase):
+	phone = '09123456780'
+	password = 'Safe-Training-Password-914!'
+
+	def setUp(self):
+		cache.clear()
+		FakeSMSBackend.messages.clear()
+
+	def make_member(self, with_password=True):
+		return get_user_model().objects.create_user(
+			phone=self.phone,
+			role=get_user_model().Role.STUDENT,
+			is_profile_complete=True,
+			password=self.password if with_password else None,
+		)
+
+	def test_login_page_defaults_to_password(self):
+		response = self.client.get(reverse('phone_auth:login'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'ورود با رمز عبور')
+		self.assertContains(response, 'name="password"')
+
+	def test_member_signs_in_without_an_sms(self):
+		self.make_member()
+
+		response = self.client.post(reverse('phone_auth:login'), {
+			'phone': self.phone,
+			'password': self.password,
+		})
+
+		self.assertRedirects(response, reverse('account'))
+		self.assertEqual(FakeSMSBackend.messages, [])
+
+	def test_wrong_password_does_not_log_in(self):
+		self.make_member()
+
+		response = self.client.post(reverse('phone_auth:login'), {
+			'phone': self.phone,
+			'password': 'Wrong-Password-914!',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'درست نیست')
+		self.assertNotIn('_auth_user_id', self.client.session)
+
+	def test_account_without_a_password_is_told_to_use_sms(self):
+		self.make_member(with_password=False)
+
+		response = self.client.post(reverse('phone_auth:login'), {
+			'phone': self.phone,
+			'password': 'anything',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'هنوز رمز عبور ندارد')
+
+	def test_legacy_member_sets_a_password_after_sms_login(self):
+		self.make_member(with_password=False)
+
+		self.client.post(reverse('phone_auth:sms_login'), {'phone': self.phone, 'role': 'student'})
+		_, code = FakeSMSBackend.messages[-1]
+		response = self.client.post(reverse('phone_auth:verify_otp'), {'code': code})
+
+		self.assertRedirects(response, reverse('phone_auth:set_password'))
+
+		response = self.client.post(reverse('phone_auth:set_password'), {
+			'password': self.password,
+			'password_confirm': self.password,
+		})
+
+		self.assertRedirects(response, reverse('account'))
+		user = get_user_model().objects.get(phone=self.phone)
+		self.assertTrue(user.check_password(self.password))
+
+	def test_forgot_password_reset_sets_a_new_password_and_signs_in(self):
+		user = self.make_member()
+
+		response = self.client.post(reverse('phone_auth:password_reset'), {'phone': self.phone})
+		self.assertRedirects(response, reverse('phone_auth:password_reset_confirm'))
+
+		_, code = FakeSMSBackend.messages[-1]
+		response = self.client.post(reverse('phone_auth:password_reset_confirm'), {
+			'code': code,
+			'password': 'Another-Safe-Password-915!',
+			'password_confirm': 'Another-Safe-Password-915!',
+		})
+
+		self.assertRedirects(response, reverse('account'))
+		user.refresh_from_db()
+		self.assertTrue(user.check_password('Another-Safe-Password-915!'))
+		self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+	def test_reset_never_creates_an_account_for_an_unknown_phone(self):
+		self.client.post(reverse('phone_auth:password_reset'), {'phone': '09120000099'})
+		_, code = FakeSMSBackend.messages[-1]
+
+		response = self.client.post(reverse('phone_auth:password_reset_confirm'), {
+			'code': code,
+			'password': self.password,
+			'password_confirm': self.password,
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertFalse(get_user_model().objects.filter(phone='09120000099').exists())
+
+	def test_complete_profile_requires_a_matching_password(self):
+		user = get_user_model().objects.create_user(
+			phone='09120000098',
+			is_profile_complete=False,
+		)
+		self.client.force_login(user)
+
+		response = self.client.post(reverse('phone_auth:complete_profile'), {
+			'name': 'بدون رمز',
+			'city': 'تهران',
+			'role': 'student',
+			'password': self.password,
+			'password_confirm': 'Other-Password-914!',
+		})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'یکسان نیستند')
 
 
 class CoachSignupLeadTests(TestCase):

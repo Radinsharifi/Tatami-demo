@@ -11,6 +11,10 @@
     یک کد دعوت بسازید و آن را با هنرجوها به اشتراک بگذارید. هر کس با آن کد وارد شود،
     در فهرست هنرجویان شما قرار می‌گیرد.
   </p>
+  <p class="field-help">
+    «کد شخصی» همیشه برای شما ساخته می‌شود و محدودیت تعداد ندارد. کدهای دیگر را برای
+    یک کلاس یا دورهٔ مشخص بسازید.
+  </p>
 
   <nav class="panel-links" aria-label="بخش‌های پنل مربی">
     <a class="text-link" href="{% url 'coach_panel:course_list' %}">دوره‌های من</a>
@@ -56,14 +60,22 @@
           </div>
           <p class="field-help">
             {% if invite.label %}{{ invite.label }} — {% endif %}
-            {{ invite.uses|persian_digits }} استفاده
-            {% if invite.max_uses %} از {{ invite.max_uses|persian_digits }}{% endif %}
+            {% if invite.max_uses %}
+              {{ invite.uses|persian_digits }} استفاده از {{ invite.max_uses|persian_digits }} —
+              {{ invite.remaining_uses|persian_digits }} باقی‌مانده
+            {% else %}
+              {{ invite.uses|persian_digits }} استفاده — بدون محدودیت
+            {% endif %}
           </p>
           <p class="invite-share-text">
             برای عضویت در فهرست هنرجویان من، این نشانی را باز کنید:
           </p>
-          <input class="invite-link" type="text" readonly
-                 value="{{ request.scheme }}://{{ request.get_host }}{% url 'coaches:join_coach' invite.code %}">
+          <div class="invite-copy-row">
+            <input class="invite-link" id="invite-link-{{ invite.pk }}" type="text" readonly
+                   value="{{ request.scheme }}://{{ request.get_host }}{% url 'coaches:join_coach' invite.code %}">
+            <button class="button button-outline copy-link" type="button"
+                    data-target="invite-link-{{ invite.pk }}">کپی لینک</button>
+          </div>
           <form method="post" action="{% url 'coach_students:toggle_invite' invite.pk %}">
             {% csrf_token %}
             <button class="text-link" type="submit">
@@ -111,4 +123,23 @@
     {% endif %}
   </section>
 </main>
+<script>
+  document.querySelectorAll('.copy-link').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var field = document.getElementById(button.dataset.target);
+      if (!field) { return; }
+      field.select();
+      var done = function () {
+        button.textContent = 'کپی شد';
+        window.setTimeout(function () { button.textContent = 'کپی لینک'; }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(field.value).then(done).catch(function () {});
+      } else {
+        document.execCommand('copy');
+        done();
+      }
+    });
+  });
+</script>
 {% endblock %}

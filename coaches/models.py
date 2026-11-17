@@ -135,6 +135,13 @@ class CoachInvite(models.Model):
 		return bool(self.max_uses) and self.uses >= self.max_uses
 
 	@property
+	def remaining_uses(self):
+		"""`None` means unlimited. Templates render that as «بی‌نهایت»."""
+		if not self.max_uses:
+			return None
+		return max(self.max_uses - self.uses, 0)
+
+	@property
 	def is_usable(self):
 		return self.is_active and not self.is_expired and not self.is_exhausted
 

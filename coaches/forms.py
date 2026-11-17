@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 
 from coaches.storage import PrivateFileInput
@@ -39,6 +41,29 @@ class CoachInviteForm(forms.ModelForm):
 		widgets = {
 			'label': forms.TextInput(attrs={'placeholder': 'مثلاً کلاس شنبه‌ها'}),
 		}
+
+
+class InviteCodeEntryForm(forms.Form):
+	"""A student who was told a code by hand, rather than sent a link."""
+
+	code = forms.CharField(
+		label='کد دعوت',
+		max_length=12,
+		widget=forms.TextInput(attrs={
+			'placeholder': 'مثلاً K7PM2XQ9',
+			'autocomplete': 'off',
+			'autocapitalize': 'characters',
+		}),
+	)
+
+	def clean_code(self):
+		# Codes are stored uppercase and looked up case-insensitively; accept
+		# Persian/Arabic digits by folding them first.
+		code = self.cleaned_data['code'].strip().upper()
+		code = code.translate(str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789'))
+		if not re.fullmatch(r'[A-Z0-9]{4,12}', code):
+			raise forms.ValidationError('کد دعوت باید ۸ نویسهٔ انگلیسی یا رقم باشد.')
+		return code
 
 
 class CoachProfileForm(forms.ModelForm):

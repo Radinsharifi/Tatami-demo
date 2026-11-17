@@ -5,6 +5,10 @@
 <main class="page-main auth-main">
   <p class="eyebrow">حساب کاربری تاتامی پلاس</p>
   <h1 class="page-title">پروفایلت را تکمیل کن</h1>
+  <p class="page-copy">
+    یک رمز عبور بساز. از این پس با شمارهٔ همراه و همین رمز وارد می‌شوی و برای هر ورود
+    پیامک نمی‌فرستیم.
+  </p>
   <form class="auth-form" method="post">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
@@ -12,6 +16,7 @@
       <div class="form-field">
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
         {{ field }}
+        {% if field.help_text %}<div class="field-help">{{ field.help_text }}</div>{% endif %}
         {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
       </div>
     {% endfor %}

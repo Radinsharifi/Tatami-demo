@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.models import User
 from .access import coach_profile_or_redirect
-from .forms import CoachApplicationForm, CoachInviteForm, CoachProfileForm
+from .forms import CoachApplicationForm, CoachInviteForm, CoachProfileForm, InviteCodeEntryForm
 from .invites import InviteError, generate_code, redeem
 from .models import CoachApplication, CoachInvite, CoachProfile
 
@@ -158,6 +158,27 @@ def toggle_invite(request, pk):
 	else:
 		messages.info(request, f'کد {invite.code} غیرفعال شد؛ هنرجویان تازه نمی‌توانند از آن استفاده کنند.')
 	return redirect('coach_students:list')
+
+
+@login_required
+def enter_code(request):
+	"""Manual entry for a code a student was handed verbally.
+
+	Resolves to the coach first so a typo gets a field error on this page
+	instead of a bare 404 on the join page.
+	"""
+	if request.method == 'POST':
+		form = InviteCodeEntryForm(request.POST)
+		if form.is_valid():
+			code = form.cleaned_data['code']
+			if not CoachInvite.objects.filter(code__iexact=code).exists():
+				form.add_error('code', 'این کد دعوت پیدا نشد. کد را دوباره بررسی کنید.')
+			else:
+				return redirect('coaches:join_coach', code=code)
+	else:
+		form = InviteCodeEntryForm()
+
+	return render(request, 'coaches/join_enter.html', {'form': form})
 
 
 @login_required

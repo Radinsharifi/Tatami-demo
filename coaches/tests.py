@@ -215,6 +215,42 @@ class CoachInviteTests(TestCase):
 		self.assertContains(response, 'هنرجوهای من')
 		self.assertContains(response, 'ABCD2345')
 
+	def test_approval_creates_a_permanent_personal_code(self):
+		personal = CoachInvite.objects.get(coach=self.profile, label='کد شخصی')
+
+		self.assertEqual(personal.max_uses, 0)
+		self.assertEqual(len(personal.code), 8)
+		self.assertTrue(personal.is_active)
+		self.assertTrue(personal.is_usable)
+
+	def test_panel_shows_the_personal_code_and_a_copy_button(self):
+		self.client.force_login(self.coach_user)
+		personal = CoachInvite.objects.get(coach=self.profile, label='کد شخصی')
+
+		response = self.client.get(reverse('coach_students:list'))
+
+		self.assertContains(response, personal.code)
+		self.assertContains(response, 'کپی لینک')
+
+	def test_manual_code_entry_finds_the_coach_or_shows_an_error(self):
+		self.client.force_login(self.student)
+		self.assertContains(self.client.get(reverse('coaches:enter_code')), 'کد دعوت را وارد کن')
+
+		response = self.client.post(reverse('coaches:enter_code'), {'code': self.invite.code.lower()})
+		self.assertRedirects(response, reverse('coaches:join_coach', args=[self.invite.code]))
+
+		response = self.client.post(reverse('coaches:enter_code'), {'code': 'ZZZZ9999'})
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'این کد دعوت پیدا نشد')
+
+	def test_join_page_shows_the_remaining_capacity(self):
+		invite = CoachInvite.objects.create(coach=self.profile, code='LIMIT234', max_uses=3)
+		self.client.force_login(self.student)
+
+		response = self.client.get(reverse('coaches:join_coach', args=[invite.code]))
+
+		self.assertContains(response, '۳ جای خالی از ۳')
+
 	def test_coach_creates_a_code_that_belongs_to_their_profile(self):
 		self.client.force_login(self.coach_user)
 
@@ -224,9 +260,8 @@ class CoachInviteTests(TestCase):
 		})
 
 		self.assertRedirects(response, reverse('coach_students:list'))
-		invite = CoachInvite.objects.exclude(pk=self.invite.pk).get()
+		invite = CoachInvite.objects.get(label='کلاس شنبه‌ها')
 		self.assertEqual(invite.coach, self.profile)
-		self.assertEqual(invite.label, 'کلاس شنبه‌ها')
 		self.assertEqual(invite.max_uses, 15)
 		self.assertEqual(len(invite.code), 8)
 		for character in 'IO01':

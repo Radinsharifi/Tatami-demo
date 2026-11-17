@@ -1,4 +1,5 @@
-from django.contrib.auth import login
+from django.contrib import messages
+from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpResponseNotAllowed
@@ -7,8 +8,16 @@ from django.urls import reverse
 from django.utils.http import urlencode
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from .auth_services import OTPError, OTPInvalid, OTPRateLimitExceeded, send_otp, verify_otp
-from .forms import OTPVerifyForm, PhoneLoginForm, ProfileCompletionForm
+from .auth_services import OTPInvalid, OTPRateLimitExceeded, consume_otp, send_otp, verify_otp
+from .forms import (
+	NewPasswordForm,
+	OTPVerifyForm,
+	PasswordLoginForm,
+	PhoneLoginForm,
+	PhoneOnlyForm,
+	ProfileCompletionForm,
+	ResetPasswordForm,
+)
 from .models import User
 
 
@@ -17,7 +26,7 @@ def register(request):
 	next_url = _safe_next(request, request.GET.get('next'))
 	if next_url:
 		query['next'] = next_url
-	return redirect(f"{reverse('phone_auth:login')}?{urlencode(query)}")
+	return redirect(f"{reverse('phone_auth:sms_login')}?{urlencode(query)}")
 
 
 def legacy_login_redirect(request):
@@ -34,7 +43,43 @@ def _safe_next(request, value):
 	return ''
 
 
+def password_login(request):
+	"""Returning members sign in with phone + password; no SMS involved."""
+	if request.user.is_authenticated:
+		return redirect('account')
+
+	if request.method == 'POST':
+		form = PasswordLoginForm(request.POST)
+		if form.is_valid():
+			phone = form.cleaned_data['phone']
+			user = authenticate(
+				request,
+				username=phone,
+				password=form.cleaned_data['password'],
+			)
+			if user is None:
+				existing = User.objects.filter(phone=phone).first()
+				if existing is not None and not existing.has_usable_password():
+					form.add_error(
+						None,
+						'این حساب هنوز رمز عبور ندارد. با کد پیامکی وارد شوید و در ادامه رمز بسازید.',
+					)
+				else:
+					form.add_error(None, 'شمارهٔ همراه یا رمز عبور درست نیست.')
+			else:
+				login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+				next_url = _safe_next(request, form.cleaned_data.get('next_url'))
+				return redirect(next_url or 'account')
+	else:
+		form = PasswordLoginForm(initial={
+			'next_url': _safe_next(request, request.GET.get('next')),
+		})
+
+	return render(request, 'accounts/login.html', {'form': form, 'mode': 'password'})
+
+
 def phone_login(request):
+	"""SMS path: first-time signup, or an account with no password yet."""
 	if request.user.is_authenticated:
 		return redirect('account')
 
@@ -60,7 +105,7 @@ def phone_login(request):
 			'next_url': _safe_next(request, request.GET.get('next')),
 		})
 
-	return render(request, 'accounts/login.html', {'form': form})
+	return render(request, 'accounts/login.html', {'form': form, 'mode': 'sms'})
 
 
 def send_otp_view(request):
@@ -106,6 +151,9 @@ def verify_otp_view(request):
 				request.session.pop('otp_role', None)
 				if not user.is_profile_complete:
 					return redirect('phone_auth:complete_profile')
+				if not user.has_usable_password():
+					# Accounts created before passwords were required set one now.
+					return redirect('phone_auth:set_password')
 				request.session.pop('otp_next', None)
 				return redirect(next_url or 'account')
 	else:
@@ -126,6 +174,73 @@ def complete_profile(request):
 	else:
 		form = ProfileCompletionForm(initial={'role': request.user.role})
 	return render(request, 'accounts/complete_profile.html', {'form': form})
+
+
+@login_required
+def set_password(request):
+	"""One-time password creation for accounts that predate password login."""
+	if request.user.has_usable_password():
+		return redirect('account')
+
+	form = NewPasswordForm(request.POST or None)
+	if request.method == 'POST' and form.is_valid():
+		form.save(request.user)
+		messages.success(request, 'رمز عبور شما ثبت شد. از این پس با رمز وارد می‌شوید.')
+		return redirect(request.session.pop('otp_next', '') or 'account')
+
+	return render(request, 'accounts/set_password.html', {'form': form})
+
+
+def password_reset(request):
+	"""Forgot password: SMS is one of the two allowed uses for a code."""
+	if request.method == 'POST':
+		form = PhoneOnlyForm(request.POST)
+		if form.is_valid():
+			phone = form.cleaned_data['phone']
+			try:
+				send_otp(phone, request.META.get('REMOTE_ADDR'))
+			except OTPRateLimitExceeded:
+				form.add_error('phone', 'برای ارسال دوبارهٔ کد کمی صبر کنید.')
+			except ImproperlyConfigured:
+				form.add_error(None, 'ارسال پیامک در این محیط پیکربندی نشده است.')
+			else:
+				request.session['reset_phone'] = phone
+				return redirect('phone_auth:password_reset_confirm')
+	else:
+		form = PhoneOnlyForm()
+
+	return render(request, 'accounts/password_reset.html', {'form': form})
+
+
+def password_reset_confirm(request):
+	phone = request.session.get('reset_phone')
+	if not phone:
+		return redirect('phone_auth:password_reset')
+
+	if request.method == 'POST':
+		form = ResetPasswordForm(request.POST)
+		if form.is_valid():
+			try:
+				consume_otp(phone, form.cleaned_data['code'])
+			except OTPInvalid:
+				form.add_error('code', 'کد نامعتبر یا منقضی شده است. دوباره درخواست کد کنید.')
+			else:
+				user = User.objects.filter(phone=phone).first()
+				if user is None:
+					form.add_error(None, 'حسابی با این شماره پیدا نشد.')
+				else:
+					form.save(user)
+					request.session.pop('reset_phone', None)
+					login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+					messages.success(request, 'رمز عبور تازه ثبت شد.')
+					return redirect('account')
+	else:
+		form = ResetPasswordForm()
+
+	return render(request, 'accounts/password_reset_confirm.html', {
+		'form': form,
+		'phone_hint': f'****{phone[-4:]}',
+	})
 
 
 def account(request):
