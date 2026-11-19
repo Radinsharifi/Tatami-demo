@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'orders.apps.OrdersConfig',
     'club.apps.ClubConfig',
     'gems.apps.GemsConfig',
+    'blog.apps.BlogConfig',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'

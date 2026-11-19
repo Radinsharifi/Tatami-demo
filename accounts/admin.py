@@ -54,7 +54,7 @@ class SignupLeadAdmin(admin.ModelAdmin):
 		return False
 
 	def has_delete_permission(self, request, obj=None):
-		return False
+		return request.user.has_perm('accounts.delete_user')
 
 	def formfield_for_foreignkey(self, db_field, request, **kwargs):
 		if db_field.name == 'assigned_to':

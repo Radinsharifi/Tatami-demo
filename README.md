@@ -55,6 +55,7 @@ Members sign in at `/auth/login/` with a phone number and a five-digit code; the
 - Coach invite codes: a coach creates an 8-character code, shares `/coaches/join/<code>/`, and the student appears in `/coach/students/`.
 - An account hub that shows a coach's portfolio state on arrival (not applied yet, under review, rejected with the reason, or approved), with a quick resubmit link for a rejected request that edits the same row and keeps the old certificate unless a new file is uploaded.
 - A coach portfolio editor at `/coaches/portfolio/`; an approved portfolio stays unpublished until the team flips it in Admin, and only then does the page appear in the public directory.
+- A weblog at `/blog/`: published posts list there and open at `/blog/<slug>/`, Persian slugs included. Posts are written only in Django Admin — an empty slug is derived from the title, the first publish stamps the date, and the author defaults to whoever saves the form.
 
 The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The currency is Toman. `SHIPPING_FLAT_RATE` defaults to a placeholder 50,000 until the real flat price is confirmed. There is no real payment provider yet: `PAYMENT_GATEWAY` points at the mock, which refuses to run unless `PAYMENT_ALLOW_MOCK` is enabled. Coach revenue share and payouts, a gem spend surface (checkout does not discount with gems yet), and club geo search are not implemented.
 

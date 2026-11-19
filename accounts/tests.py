@@ -385,6 +385,52 @@ class CoachSignupLeadTests(TestCase):
 		self.assertContains(response, coach.phone)
 
 
+class UserDeletionTests(TestCase):
+	def test_admin_can_delete_a_coach_together_with_its_lead(self):
+		# Regression: the lead admin used to refuse every delete, and Django
+		# checks that permission for each cascaded object too — which made
+		# coach accounts impossible to delete from the admin.
+		staff = get_user_model().objects.create_superuser(
+			phone='09120000180',
+			password='Safe-Training-Password-914!',
+		)
+		coach = get_user_model().objects.create_user(
+			phone='09120000181',
+			role=get_user_model().Role.COACH,
+		)
+		self.assertTrue(SignupLead.objects.filter(user=coach).exists())
+		self.client.force_login(staff)
+
+		url = reverse('admin:accounts_user_delete', args=[coach.pk])
+		self.assertEqual(self.client.get(url).status_code, 200)
+
+		response = self.client.post(url, {'post': 'yes'})
+
+		self.assertRedirects(response, reverse('admin:accounts_user_changelist'))
+		self.assertFalse(get_user_model().objects.filter(phone='09120000181').exists())
+		self.assertFalse(SignupLead.objects.filter(user__phone='09120000181').exists())
+
+	def test_a_call_center_member_without_user_delete_rights_cannot_delete_a_lead(self):
+		# Leads follow user deletion: the permission mirrors deleting the
+		# account the lead belongs to, nothing more.
+		coach = get_user_model().objects.create_user(
+			phone='09120000182',
+			role=get_user_model().Role.COACH,
+		)
+		lead = SignupLead.objects.get(user=coach)
+		operator = get_user_model().objects.create_user(
+			phone='09120000183',
+			is_staff=True,
+		)
+		group, _ = Group.objects.get_or_create(name='call_center')
+		operator.groups.add(group)
+		self.client.force_login(operator)
+
+		response = self.client.get(reverse('admin:accounts_signuplead_delete', args=[lead.pk]))
+
+		self.assertEqual(response.status_code, 403)
+
+
 class AccountPageTests(TestCase):
 	def test_guest_still_sees_the_role_chooser(self):
 		response = self.client.get(reverse('account'))
