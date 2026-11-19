@@ -5,41 +5,29 @@ from django.shortcuts import redirect
 from accounts.models import User
 
 from .invites import ensure_personal_invite
-from .models import CoachApplication, CoachProfile
+from .models import CoachPortfolio
 
 
-def coach_profile_or_redirect(request):
-	"""The signed-in coach's approved profile, or a redirect response.
+def coach_portfolio_or_redirect(request):
+	"""The signed-in coach's approved portfolio, or a redirect response.
 
 	Shared by the course panel and the student panel so both refuse the same
-	users for the same reasons: not a coach, no application, not approved, or
-	no public profile yet.
+	users for the same reasons: not a coach, no portfolio yet, or not approved.
 	"""
 	if request.user.role != User.Role.COACH:
 		raise PermissionDenied
 
-	application = getattr(request.user, 'coach_application', None)
-	if application is None:
+	portfolio = getattr(request.user, 'portfolio', None)
+	if portfolio is None:
 		return None, redirect('coaches:apply')
-	if application.status != CoachApplication.Status.APPROVED:
-		messages.info(request, 'پنل مربی پس از تأیید درخواست مربیگری فعال می‌شود.')
+	if portfolio.status not in (CoachPortfolio.Status.APPROVED, CoachPortfolio.Status.PUBLISHED):
+		messages.info(request, 'پنل مربی پس از تأیید پورتفولیو فعال می‌شود.')
 		return None, redirect('coaches:application_status')
 
-	profile = CoachProfile.objects.filter(application=application).first()
-	if profile is None:
-		# Legacy approved rows predate the auto-created profile. Create the
-		# shell here so the panels never dead-end on "profile not created yet".
-		name = (
-			application.user.get_full_name()
-			or application.user.first_name
-			or application.user.phone
-			or 'مربی تاتامی پلاس'
-		)
-		profile = CoachProfile.objects.create(
-			application=application,
-			display_name=name[:100],
-			biography='',
-		)
 	# Also covers coaches approved before personal codes existed.
-	ensure_personal_invite(profile)
-	return profile, None
+	ensure_personal_invite(portfolio)
+	return portfolio, None
+
+
+# Kept as an alias: older templates and imports used the old name.
+coach_profile_or_redirect = coach_portfolio_or_redirect

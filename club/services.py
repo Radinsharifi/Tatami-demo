@@ -39,7 +39,7 @@ def user_can_watch(user, episode, enrolled=None):
 		return False
 	if user.is_staff:
 		return True
-	if episode.course.coach.application.user_id == user.id:
+	if episode.course.coach.user_id == user.id:
 		return True
 	if enrolled is not None:
 		return enrolled

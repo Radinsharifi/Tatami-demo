@@ -10,12 +10,18 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from coaches.access import coach_profile_or_redirect
-from coaches.models import CoachApplication, CoachProfile
+from coaches.models import CoachPortfolio
 
 from .forms import CourseFilterForm, CourseForm, EpisodeForm
 from .models import Course, Enrollment, Episode, EpisodeCompletion
 from .services import purchase_course, user_can_watch
 from .signals import episode_completed
+
+# Approved-and-published is what counts as a live public coach page.
+PUBLIC_COACH_STATUSES = (
+	CoachPortfolio.Status.APPROVED,
+	CoachPortfolio.Status.PUBLISHED,
+)
 
 
 def course_list(request):
@@ -41,9 +47,9 @@ def course_list(request):
 
 def coach_detail(request, profile_id):
 	profile = get_object_or_404(
-		CoachProfile.objects.select_related('application', 'application__user'),
+		CoachPortfolio.objects.select_related('user'),
 		pk=profile_id,
-		application__status=CoachApplication.Status.APPROVED,
+		status__in=PUBLIC_COACH_STATUSES,
 		is_published=True,
 	)
 	courses = profile.courses.filter(status=Course.Status.PUBLISHED)
@@ -52,13 +58,13 @@ def coach_detail(request, profile_id):
 
 def course_detail(request, slug):
 	course = get_object_or_404(
-		Course.objects.select_related('coach', 'coach__application').prefetch_related('episodes'),
+		Course.objects.select_related('coach', 'coach__user').prefetch_related('episodes'),
 		slug=slug,
 		status=Course.Status.PUBLISHED,
 	)
 
 	user = request.user
-	owner = user.is_authenticated and course.coach.application.user_id == user.id
+	owner = user.is_authenticated and course.coach.user_id == user.id
 	enrolled = user.is_authenticated and Enrollment.objects.filter(user=user, course=course).exists()
 	has_full_access = owner or (user.is_authenticated and user.is_staff)
 
@@ -86,7 +92,7 @@ def course_detail(request, slug):
 def buy_course(request, slug):
 	course = get_object_or_404(Course, slug=slug, status=Course.Status.PUBLISHED)
 
-	if course.coach.application.user_id == request.user.id:
+	if course.coach.user_id == request.user.id:
 		messages.info(request, 'شما مربی این دوره هستید و دسترسی کامل دارید.')
 		return redirect(course)
 	if Enrollment.objects.filter(user=request.user, course=course).exists():
@@ -107,7 +113,7 @@ def buy_course(request, slug):
 
 def episode_play(request, pk):
 	episode = get_object_or_404(
-		Episode.objects.select_related('course', 'course__coach', 'course__coach__application'),
+		Episode.objects.select_related('course', 'course__coach', 'course__coach__user'),
 		pk=pk,
 		course__status=Course.Status.PUBLISHED,
 	)
@@ -126,7 +132,7 @@ def episode_play(request, pk):
 def episode_complete(request, pk):
 	"""Mark an episode finished. Idempotent: the second click changes nothing."""
 	episode = get_object_or_404(
-		Episode.objects.select_related('course', 'course__coach', 'course__coach__application'),
+		Episode.objects.select_related('course', 'course__coach', 'course__coach__user'),
 		pk=pk,
 		course__status=Course.Status.PUBLISHED,
 	)
@@ -155,7 +161,7 @@ def episode_stream(request, pk):
 	a large file through Python.
 	"""
 	episode = get_object_or_404(
-		Episode.objects.select_related('course', 'course__coach', 'course__coach__application'),
+		Episode.objects.select_related('course', 'course__coach', 'course__coach__user'),
 		pk=pk,
 		course__status=Course.Status.PUBLISHED,
 	)

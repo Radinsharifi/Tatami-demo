@@ -10,106 +10,121 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
-from .access import coach_profile_or_redirect
-from .forms import CoachApplicationForm, CoachInviteForm, CoachProfileForm, InviteCodeEntryForm
+from .access import coach_portfolio_or_redirect
+from .forms import CoachInviteForm, CoachPortfolioForm, InviteCodeEntryForm
 from .invites import InviteError, generate_code, redeem
-from .models import CoachApplication, CoachInvite, CoachProfile
+from .models import CoachInvite, CoachPortfolio
+
+# Statuses a coach may still edit through the apply form. Everything else
+# (pending review, approved, published, inactive) is read-only there and is
+# shown on the status page instead.
+EDITABLE_STATUSES = (
+	CoachPortfolio.Status.DRAFT,
+	CoachPortfolio.Status.INCOMPLETE,
+	CoachPortfolio.Status.REJECTED,
+)
+
+# What counts as a live public page: approved or published, and actually
+# flipped on by the team.
+PUBLIC_STATUSES = (CoachPortfolio.Status.APPROVED, CoachPortfolio.Status.PUBLISHED)
 
 
 @login_required
 def apply(request):
+	"""First submission, or a resubmit after rejection.
+
+	Both write the same portfolio row the coach already owns, so nothing is
+	duplicated and the previously uploaded certificate survives unless a new
+	file is sent.
+	"""
 	if request.user.role != User.Role.COACH:
 		raise PermissionDenied
 
-	application = getattr(request.user, 'coach_application', None)
-	# Pending and approved requests are read-only here; only a rejection opens
-	# the form again, and it reuses the same row so the certificate survives.
-	if application is not None and application.status != CoachApplication.Status.REJECTED:
+	portfolio = getattr(request.user, 'portfolio', None)
+	if portfolio is not None and portfolio.status not in EDITABLE_STATUSES:
 		return redirect('coaches:application_status')
 
-	resubmitting = application is not None
+	resubmitting = portfolio is not None and portfolio.status == CoachPortfolio.Status.REJECTED
 	if request.method == 'POST':
-		form = CoachApplicationForm(request.POST, request.FILES, instance=application)
+		form = CoachPortfolioForm(request.POST, request.FILES, instance=portfolio)
 		if form.is_valid():
-			application = form.save(commit=False)
-			application.user = request.user
-			application.status = CoachApplication.Status.PENDING_REVIEW
-			application.rejection_reason = ''
-			application.reviewed_at = None
-			application.full_clean()
-			application.save()
+			portfolio = form.save(commit=False)
+			portfolio.user = request.user
+			portfolio.status = CoachPortfolio.Status.PENDING_REVIEW
+			portfolio.rejection_reason = ''
+			portfolio.reviewed_at = None
+			portfolio.submitted_at = timezone.now()
+			portfolio.full_clean()
+			portfolio.save()
 			if resubmitting:
-				# `auto_now_add` only fires on insert, so record the new attempt.
-				CoachApplication.objects.filter(pk=application.pk).update(submitted_at=timezone.now())
 				messages.success(request, 'درخواست شما با تغییرات تازه دوباره ارسال شد.')
 			else:
 				messages.success(request, 'درخواست شما ثبت شد و در انتظار بررسی است.')
 			return redirect('coaches:application_status')
 	else:
-		form = CoachApplicationForm(instance=application)
+		form = CoachPortfolioForm(instance=portfolio)
 
 	return render(request, 'coaches/apply.html', {
 		'form': form,
 		'resubmitting': resubmitting,
-		'application': application,
+		'portfolio': portfolio,
 	})
 
 
 @login_required
 def application_status(request):
-	application = get_object_or_404(CoachApplication, user=request.user)
+	portfolio = get_object_or_404(CoachPortfolio, user=request.user)
 	return render(request, 'coaches/application_status.html', {
-		'application': application,
-		'profile': getattr(application, 'profile', None),
+		'portfolio': portfolio,
 	})
 
 
 def directory(request):
-	profiles = CoachProfile.objects.filter(
-		application__status=CoachApplication.Status.APPROVED,
+	profiles = CoachPortfolio.objects.filter(
+		status__in=PUBLIC_STATUSES,
 		is_published=True,
-	).select_related('application', 'application__user')
+	).select_related('user')
 	return render(request, 'coaches/directory.html', {'profiles': profiles})
 
 
 def profile_detail(request, profile_id):
 	profile = get_object_or_404(
-		CoachProfile.objects.select_related('application', 'application__user'),
+		CoachPortfolio.objects.select_related('user'),
 		pk=profile_id,
-		application__status=CoachApplication.Status.APPROVED,
+		status__in=PUBLIC_STATUSES,
 		is_published=True,
 	)
 	return render(request, 'coaches/profile_detail.html', {'profile': profile})
 
 
 @staff_member_required
-def certificate_download(request, application_id):
-	application = get_object_or_404(CoachApplication, pk=application_id)
-	if not application.certificate_document:
+def certificate_download(request, portfolio_id):
+	portfolio = get_object_or_404(CoachPortfolio, pk=portfolio_id)
+	if not portfolio.certificate_document:
 		raise Http404
 
 	return FileResponse(
-		application.certificate_document.open('rb'),
+		portfolio.certificate_document.open('rb'),
 		as_attachment=True,
-		filename=Path(application.certificate_document.name).name,
+		filename=Path(portfolio.certificate_document.name).name,
 	)
 
 
 @login_required
 def portfolio(request):
-	"""Edit the coach's own public profile.
+	"""Edit the coach's own public page.
 
 	Publication is not on this form: a coach can prepare the page, and the team
 	flips `is_published` in Django Admin when it is ready.
 	"""
-	profile, response = coach_profile_or_redirect(request)
+	profile, response = coach_portfolio_or_redirect(request)
 	if response:
 		return response
 
-	form = CoachProfileForm(request.POST or None, request.FILES or None, instance=profile)
+	form = CoachPortfolioForm(request.POST or None, request.FILES or None, instance=profile)
 	if request.method == 'POST' and form.is_valid():
 		form.save()
-		messages.success(request, 'پروفایل شما ذخیره شد. انتشار آن را تیم تاتامی پلاس بررسی می‌کند.')
+		messages.success(request, 'پورتفولیوی شما ذخیره شد. انتشار آن را تیم تاتامی پلاس بررسی می‌کند.')
 		return redirect('coaches:portfolio')
 
 	return render(request, 'coaches/portfolio.html', {
@@ -121,7 +136,7 @@ def portfolio(request):
 @login_required
 def coach_students(request):
 	"""Coach panel: hand out an invite code and see who joined with it."""
-	profile, response = coach_profile_or_redirect(request)
+	profile, response = coach_portfolio_or_redirect(request)
 	if response:
 		return response
 
@@ -146,7 +161,7 @@ def coach_students(request):
 @require_POST
 def toggle_invite(request, pk):
 	"""Enable or disable a code. The code value never changes."""
-	profile, response = coach_profile_or_redirect(request)
+	profile, response = coach_portfolio_or_redirect(request)
 	if response:
 		return response
 
@@ -185,7 +200,7 @@ def enter_code(request):
 def join_coach(request, code):
 	"""Student side: open the code, confirm, and get attached to the coach."""
 	invite = (
-		CoachInvite.objects.select_related('coach', 'coach__application')
+		CoachInvite.objects.select_related('coach', 'coach__user')
 		.filter(code__iexact=code.strip())
 		.first()
 	)

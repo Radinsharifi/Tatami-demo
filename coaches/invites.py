@@ -53,14 +53,14 @@ def redeem(code, user):
 	code = (code or '').strip()
 	invite = (
 		CoachInvite.objects.select_for_update()
-		.select_related('coach', 'coach__application')
+		.select_related('coach', 'coach__user')
 		.filter(code__iexact=code)
 		.first()
 	)
 	if invite is None:
 		raise InviteError('این کد دعوت پیدا نشد. کد را دوباره بررسی کنید.')
 
-	if invite.coach.application.user_id == user.id:
+	if invite.coach.user_id == user.id:
 		raise InviteError('شما مربی این پروفایل هستید و نمی‌توانید هنرجوی خودتان شوید.')
 	if not invite.is_active:
 		raise InviteError('این کد دعوت غیرفعال شده است. کد تازه‌ای از مربی بگیرید.')

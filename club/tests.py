@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from coaches.models import CoachApplication, CoachProfile
+from coaches.models import CoachPortfolio
 from orders.models import Payment
 from store.models import Cart, CartItem, Category, Product, ProductVariant
 
@@ -29,28 +29,22 @@ class ClubTestCase(TestCase):
 			password='Safe-Training-Password-914!',
 			role=user_model.Role.COACH,
 		)
-		self.application = CoachApplication(
+		self.profile = CoachPortfolio(
 			user=self.coach_user,
+			display_name='مربی آزمایشی',
+			biography='معرفی آزمایشی',
 			coaching_level='Advanced',
 			specializations='Taekwondo',
 			years_experience=8,
-			club_name='باشگاه آزمایشی',
+			club='باشگاه آزمایشی',
 			certificate_details='مدرک مربیگری',
 			certificate_document=SimpleUploadedFile('certificate.pdf', b'%PDF-1.4 test'),
-			status=CoachApplication.Status.APPROVED,
+			status=CoachPortfolio.Status.APPROVED,
+			is_published=True,
 		)
-		self.application.full_clean()
-		self.application.save()
-		self.addCleanup(self.application.certificate_document.delete, save=False)
-
-		self.profile, _ = CoachProfile.objects.update_or_create(
-			application=self.application,
-			defaults={
-				'display_name': 'مربی آزمایشی',
-				'biography': 'معرفی آزمایشی',
-				'is_published': True,
-			},
-		)
+		self.profile.full_clean()
+		self.profile.save()
+		self.addCleanup(self.profile.certificate_document.delete, save=False)
 		self.course = Course.objects.create(
 			coach=self.profile,
 			title='دورهٔ آزمایشی',
@@ -294,26 +288,21 @@ class CoachPanelTests(ClubTestCase):
 			password='Safe-Training-Password-914!',
 			role=get_user_model().Role.COACH,
 		)
-		other_application = CoachApplication(
+		other_profile = CoachPortfolio(
 			user=other_user,
+			display_name='مربی دیگر',
+			biography='…',
 			coaching_level='Intermediate',
 			specializations='Judo',
 			years_experience=3,
 			certificate_details='مدرک',
 			certificate_document=SimpleUploadedFile('other.pdf', b'%PDF-1.4 other'),
-			status=CoachApplication.Status.APPROVED,
+			status=CoachPortfolio.Status.APPROVED,
+			is_published=True,
 		)
-		other_application.full_clean()
-		other_application.save()
-		self.addCleanup(other_application.certificate_document.delete, save=False)
-		other_profile, _ = CoachProfile.objects.update_or_create(
-			application=other_application,
-			defaults={
-				'display_name': 'مربی دیگر',
-				'biography': '…',
-				'is_published': True,
-			},
-		)
+		other_profile.full_clean()
+		other_profile.save()
+		self.addCleanup(other_profile.certificate_document.delete, save=False)
 		Course.objects.create(
 			coach=other_profile,
 			title='دورهٔ مربی دیگر',
@@ -336,26 +325,21 @@ class CoachPanelTests(ClubTestCase):
 			password='Safe-Training-Password-914!',
 			role=get_user_model().Role.COACH,
 		)
-		other_application = CoachApplication(
+		other_profile = CoachPortfolio(
 			user=other_user,
+			display_name='مربی سوم',
+			biography='…',
 			coaching_level='Intermediate',
 			specializations='Judo',
 			years_experience=3,
 			certificate_details='مدرک',
 			certificate_document=SimpleUploadedFile('other2.pdf', b'%PDF-1.4 other'),
-			status=CoachApplication.Status.APPROVED,
+			status=CoachPortfolio.Status.APPROVED,
+			is_published=True,
 		)
-		other_application.full_clean()
-		other_application.save()
-		self.addCleanup(other_application.certificate_document.delete, save=False)
-		other_profile, _ = CoachProfile.objects.update_or_create(
-			application=other_application,
-			defaults={
-				'display_name': 'مربی سوم',
-				'biography': '…',
-				'is_published': True,
-			},
-		)
+		other_profile.full_clean()
+		other_profile.save()
+		self.addCleanup(other_profile.certificate_document.delete, save=False)
 		foreign = Course.objects.create(
 			coach=other_profile,
 			title='دورهٔ بیگانه',
@@ -431,26 +415,21 @@ class CoachPanelTests(ClubTestCase):
 			password='Safe-Training-Password-914!',
 			role=get_user_model().Role.COACH,
 		)
-		other_application = CoachApplication(
+		other_profile = CoachPortfolio(
 			user=other_user,
+			display_name='مربی چهارم',
+			biography='…',
 			coaching_level='Intermediate',
 			specializations='Judo',
 			years_experience=3,
 			certificate_details='مدرک',
 			certificate_document=SimpleUploadedFile('other3.pdf', b'%PDF-1.4 other'),
-			status=CoachApplication.Status.APPROVED,
+			status=CoachPortfolio.Status.APPROVED,
+			is_published=True,
 		)
-		other_application.full_clean()
-		other_application.save()
-		self.addCleanup(other_application.certificate_document.delete, save=False)
-		other_profile, _ = CoachProfile.objects.update_or_create(
-			application=other_application,
-			defaults={
-				'display_name': 'مربی چهارم',
-				'biography': '…',
-				'is_published': True,
-			},
-		)
+		other_profile.full_clean()
+		other_profile.save()
+		self.addCleanup(other_profile.certificate_document.delete, save=False)
 		foreign = Course.objects.create(
 			coach=other_profile,
 			title='دورهٔ بیگانهٔ دوم',

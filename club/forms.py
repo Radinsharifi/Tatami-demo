@@ -1,8 +1,14 @@
 from django import forms
 from django.conf import settings
 
-from coaches.models import CoachApplication, CoachProfile
+from coaches.models import CoachPortfolio
 from coaches.storage import PrivateFileInput
+
+# Approved-and-published is what counts as a live public coach page.
+PUBLIC_COACH_STATUSES = (
+	CoachPortfolio.Status.APPROVED,
+	CoachPortfolio.Status.PUBLISHED,
+)
 
 from .models import Course, Episode
 from .services import build_unique_slug
@@ -11,7 +17,7 @@ from .services import build_unique_slug
 class CourseFilterForm(forms.Form):
 	coach = forms.ModelChoiceField(
 		label='مربی',
-		queryset=CoachProfile.objects.none(),
+		queryset=CoachPortfolio.objects.none(),
 		required=False,
 		empty_label='همهٔ مربیان',
 	)
@@ -25,9 +31,9 @@ class CourseFilterForm(forms.Form):
 		published_coach_ids = Course.objects.filter(
 			status=Course.Status.PUBLISHED,
 		).values_list('coach_id', flat=True)
-		self.fields['coach'].queryset = CoachProfile.objects.filter(
+		self.fields['coach'].queryset = CoachPortfolio.objects.filter(
 			pk__in=published_coach_ids,
-			application__status=CoachApplication.Status.APPROVED,
+			status__in=PUBLIC_COACH_STATUSES,
 			is_published=True,
 		).order_by('display_name')
 		self.fields['level'].choices = [('', 'همهٔ سطح‌ها'), *Course.Level.choices]

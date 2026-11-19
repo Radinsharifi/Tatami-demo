@@ -13,11 +13,11 @@
       درخواست پیشین شما رد شده است. فیلدها با اطلاعات قبلی پر شده‌اند؛ هر چه لازم است اصلاح کنید
       و دوباره بفرستید. اگر فایل مدرک تازه‌ای بارگذاری نکنید، همان فایل قبلی می‌ماند.
     </p>
-    {% if application.rejection_reason %}
-      <p class="field-error">دلیل رد قبلی: {{ application.rejection_reason }}</p>
+    {% if portfolio.rejection_reason %}
+      <p class="field-error">دلیل رد قبلی: {{ portfolio.rejection_reason }}</p>
     {% endif %}
   {% else %}
-    <p class="page-copy">درخواست شما توسط تیم تاتامی پلاس بررسی می‌شود. ثبت درخواست، پروفایل عمومی را به‌طور خودکار منتشر نمی‌کند.</p>
+    <p class="page-copy">درخواست شما توسط تیم تاتامی پلاس بررسی می‌شود. ثبت پورتفولیو، صفحهٔ عمومی را به‌طور خودکار منتشر نمی‌کند.</p>
   {% endif %}
 
   <form class="auth-form" method="post" enctype="multipart/form-data">

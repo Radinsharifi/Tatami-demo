@@ -169,8 +169,15 @@ def complete_profile(request):
 	if request.method == 'POST':
 		form = ProfileCompletionForm(request.POST)
 		if form.is_valid():
+			# Read the destination first: setting a new password below changes
+			# the session's auth hash, so re-login flushes the session.
+			next_url = request.session.pop('otp_next', '')
 			form.save(request.user)
-			return redirect(request.session.pop('otp_next', '') or 'account')
+			# The password just changed, so the hash stored when the OTP was
+			# verified no longer matches; log in again against the new one or
+			# the next request would silently log the user out.
+			login(request, request.user, backend='django.contrib.auth.backends.ModelBackend')
+			return redirect(next_url or 'account')
 	else:
 		form = ProfileCompletionForm(initial={'role': request.user.role})
 	return render(request, 'accounts/complete_profile.html', {'form': form})
@@ -184,9 +191,13 @@ def set_password(request):
 
 	form = NewPasswordForm(request.POST or None)
 	if request.method == 'POST' and form.is_valid():
+		# Read the destination first: re-login below flushes the session,
+		# because the password (and with it the session auth hash) just changed.
+		next_url = request.session.pop('otp_next', '')
 		form.save(request.user)
+		login(request, request.user, backend='django.contrib.auth.backends.ModelBackend')
 		messages.success(request, 'رمز عبور شما ثبت شد. از این پس با رمز وارد می‌شوید.')
-		return redirect(request.session.pop('otp_next', '') or 'account')
+		return redirect(next_url or 'account')
 
 	return render(request, 'accounts/set_password.html', {'form': form})
 
@@ -244,19 +255,15 @@ def password_reset_confirm(request):
 
 
 def account(request):
-	"""The signed-in landing page, including the coach request's current state.
+	"""The signed-in landing page, including the coach portfolio's state.
 
 	`accounts` must not import `coaches`, so the reverse OneToOne is read with
-	`getattr`; a missing application is simply "has not applied yet".
+	`getattr`; a missing portfolio is simply "has not applied yet".
 	"""
-	application = None
-	profile = None
+	portfolio = None
 	if request.user.is_authenticated and request.user.role == User.Role.COACH:
-		application = getattr(request.user, 'coach_application', None)
-		if application is not None:
-			profile = getattr(application, 'profile', None)
+		portfolio = getattr(request.user, 'portfolio', None)
 
 	return render(request, 'pages/account.html', {
-		'coach_application': application,
-		'coach_profile': profile,
+		'coach_portfolio': portfolio,
 	})

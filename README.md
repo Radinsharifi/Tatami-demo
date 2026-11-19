@@ -40,8 +40,9 @@ Members sign in at `/auth/login/` with a phone number and a five-digit code; the
 - Server-rendered Persian home, coach directory, shop catalog, product detail, cart, and account pages.
 - Phone + OTP authentication under `/auth/` (login and signup in one flow), profile completion, and student/coach roles.
 - Call-center signup leads for new coach accounts, visible only to superusers and the `call_center` group.
-- Coach applications with pending, approved, and rejected states in Django Admin.
-- Private coach certificate uploads, staff-only downloads, and public profiles gated by both approval and team publication.
+- A unified coach portfolio: the application and the public page are one `CoachPortfolio` record (no separate application model), with lifecycle states `draft`, `pending_review`, `incomplete`, `approved`, `published`, `rejected`, and `inactive` managed in Django Admin.
+- CRM registration: the portfolio list's standard "Add" button opens the normal admin form. Pick the coach's account in the `کاربر مربی` field — the green "+" beside it opens a popup that creates the coach account without leaving the page — then fill in the portfolio and save. The row starts unpublished; only the team publishes.
+- Private coach certificate uploads, staff-only downloads, and public portfolios gated by both approval and team publication.
 - Admin-managed product categories, products, local images, size/color variants, prices, and stock.
 - Catalog search, category/price/size/color/level filters, sorting, guest session carts, and user carts that merge after login.
 - Server-side price totals and stock checks when adding or updating cart items.
@@ -52,8 +53,8 @@ Members sign in at `/auth/login/` with a phone number and a five-digit code; the
 - Private course videos served only by an access-checked view, with no public URL and an optional Nginx `X-Accel-Redirect` handoff.
 - A gem ledger: admin-editable `GemRule` rows award gems for profile completion, finished episodes, and settled shop orders; `User.gem_balance` is a cache of `Sum(amount)`, and `/account/gems/` shows the history.
 - Coach invite codes: a coach creates an 8-character code, shares `/coaches/join/<code>/`, and the student appears in `/coach/students/`.
-- An account hub that shows a coach's application state on arrival (not applied, under review, rejected with the reason, or approved), with a quick resubmit link for a rejected request that edits the same row and keeps the old certificate unless a new file is uploaded.
-- A coach portfolio editor at `/coaches/portfolio/`; an approved application creates an unpublished profile automatically, and the team still decides when that profile goes live.
+- An account hub that shows a coach's portfolio state on arrival (not applied yet, under review, rejected with the reason, or approved), with a quick resubmit link for a rejected request that edits the same row and keeps the old certificate unless a new file is uploaded.
+- A coach portfolio editor at `/coaches/portfolio/`; an approved portfolio stays unpublished until the team flips it in Admin, and only then does the page appear in the public directory.
 
 The product catalog JSON and local image mapping are not currently in the workspace, so the catalog is empty and no product data has been invented. The currency is Toman. `SHIPPING_FLAT_RATE` defaults to a placeholder 50,000 until the real flat price is confirmed. There is no real payment provider yet: `PAYMENT_GATEWAY` points at the mock, which refuses to run unless `PAYMENT_ALLOW_MOCK` is enabled. Coach revenue share and payouts, a gem spend surface (checkout does not discount with gems yet), and club geo search are not implemented.
 

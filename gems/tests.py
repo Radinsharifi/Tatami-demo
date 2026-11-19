@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from club.models import Course, Episode
 from coaches.invites import ensure_personal_invite, redeem
-from coaches.models import CoachApplication, CoachProfile
+from coaches.models import CoachPortfolio
 from orders.models import Address, Order, Payment
 from store.models import Cart, CartItem, Category, Product, ProductVariant
 
@@ -143,28 +143,22 @@ class EpisodeCompletionRewardTests(TestCase):
 		user_model = get_user_model()
 		self.student = make_user('watcher')
 		self.coach_user = make_user('course-coach', role=user_model.Role.COACH)
-		application = CoachApplication(
+		profile = CoachPortfolio(
 			user=self.coach_user,
+			display_name='مربی آزمایشی',
+			biography='…',
 			coaching_level='Advanced',
 			specializations='Taekwondo',
 			years_experience=8,
-			club_name='باشگاه آزمایشی',
+			club='باشگاه آزمایشی',
 			certificate_details='مدرک مربیگری',
 			certificate_document=SimpleUploadedFile('certificate.pdf', b'%PDF-1.4 test'),
-			status=CoachApplication.Status.APPROVED,
+			status=CoachPortfolio.Status.APPROVED,
+			is_published=True,
 		)
-		application.full_clean()
-		application.save()
-		self.addCleanup(application.certificate_document.delete, save=False)
-
-		profile, _ = CoachProfile.objects.update_or_create(
-			application=application,
-			defaults={
-				'display_name': 'مربی آزمایشی',
-				'biography': '…',
-				'is_published': True,
-			},
-		)
+		profile.full_clean()
+		profile.save()
+		self.addCleanup(profile.certificate_document.delete, save=False)
 		course = Course.objects.create(
 			coach=profile,
 			title='دورهٔ آزمایشی',
@@ -308,21 +302,22 @@ class InviteRewardTests(TestCase):
 	def setUp(self):
 		user_model = get_user_model()
 		self.coach_user = make_user('invite-coach', role=user_model.Role.COACH)
-		application = CoachApplication(
+		self.profile = CoachPortfolio(
 			user=self.coach_user,
+			display_name='مربی آزمایشی',
+			biography='…',
 			coaching_level='Advanced',
 			specializations='Taekwondo',
 			years_experience=8,
-			club_name='باشگاه آزمایشی',
+			club='باشگاه آزمایشی',
 			certificate_details='مدرک مربیگری',
 			certificate_document=SimpleUploadedFile('invite.pdf', b'%PDF-1.4 invite'),
-			status=CoachApplication.Status.APPROVED,
+			status=CoachPortfolio.Status.APPROVED,
 		)
-		application.full_clean()
-		application.save()
-		self.addCleanup(application.certificate_document.delete, save=False)
+		self.profile.full_clean()
+		self.profile.save()
+		self.addCleanup(self.profile.certificate_document.delete, save=False)
 
-		self.profile = CoachProfile.objects.get(application=application)
 		self.invite = ensure_personal_invite(self.profile)
 		self.student = make_user('invite-student')
 

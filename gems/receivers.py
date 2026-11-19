@@ -30,7 +30,7 @@ def award_invite(sender, link, student, coach, **kwargs):
 	unique key is per user and reason, so a replayed redemption is inert.
 	"""
 	award(student, GemReason.INVITE_STUDENT, ref=link)
-	award(coach.application.user, GemReason.INVITE_COACH, ref=link)
+	award(coach.user, GemReason.INVITE_COACH, ref=link)
 
 
 @receiver(payment_succeeded, sender=Payment)

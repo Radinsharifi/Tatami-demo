@@ -5,8 +5,7 @@ from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
 from django.urls import reverse
 from django_jalali.db import models as jmodels
-
-from coaches.models import CoachProfile
+from coaches.models import CoachPortfolio
 from coaches.storage import PrivateUploadStorage
 from orders.models import Payment
 
@@ -35,7 +34,7 @@ class Course(models.Model):
 		PUBLISHED = 'published', 'منتشرشده'
 
 	coach = models.ForeignKey(
-		CoachProfile,
+		CoachPortfolio,
 		verbose_name='مربی',
 		on_delete=models.CASCADE,
 		related_name='courses',

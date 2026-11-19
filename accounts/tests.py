@@ -133,6 +133,42 @@ class AuthenticationFlowTests(TestCase):
 		self.assertTrue(user.has_usable_password())
 		self.assertTrue(user.check_password('Safe-Training-Password-914!'))
 
+	def test_completing_the_profile_keeps_the_user_signed_in(self):
+		# Changing the password invalidates the session hash stored at OTP
+		# verification; without a fresh login the next request logs the user
+		# out and they land back on the login page.
+		self.request_code()
+		self.verify_latest_code()
+
+		response = self.client.post(reverse('phone_auth:complete_profile'), {
+			'name': 'هنرجوی آزمایشی',
+			'city': 'کرج',
+			'role': 'student',
+			'password': 'Safe-Training-Password-914!',
+			'password_confirm': 'Safe-Training-Password-914!',
+		})
+
+		self.assertRedirects(response, reverse('account'))
+		response = self.client.get(reverse('account'))
+		self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+	def test_setting_a_password_keeps_the_user_signed_in(self):
+		# Same session-hash trap as profile completion: the password changes
+		# while the user is signed in, so the view has to log them in again.
+		get_user_model().objects.create_user(phone=self.phone)
+		self.request_code()
+		response = self.verify_latest_code()
+		self.assertRedirects(response, reverse('phone_auth:set_password'))
+
+		response = self.client.post(reverse('phone_auth:set_password'), {
+			'password': 'Safe-Training-Password-914!',
+			'password_confirm': 'Safe-Training-Password-914!',
+		})
+
+		self.assertRedirects(response, reverse('account'))
+		response = self.client.get(reverse('account'))
+		self.assertTrue(response.wsgi_request.user.is_authenticated)
+
 	def test_existing_phone_account_keeps_its_role(self):
 		user = get_user_model().objects.create_user(
 			phone=self.phone,

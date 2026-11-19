@@ -9,91 +9,89 @@ from .storage import PrivateUploadStorage
 private_storage = PrivateUploadStorage()
 
 
-class CoachApplication(models.Model):
+class CoachPortfolio(models.Model):
+	"""The single coach record: application, public page, and admin lifecycle in one.
+
+	There is deliberately no separate application model. A coach fills this in
+	themselves (status becomes `pending_review`) or CRM creates it from the
+	admin (status starts at `approved`); admins then review and publish it.
+	"""
+
 	objects = jmodels.jManager()
 
 	class Status(models.TextChoices):
+		DRAFT = 'draft', 'پیش‌نویس'
 		PENDING_REVIEW = 'pending_review', 'در انتظار بررسی'
+		INCOMPLETE = 'incomplete', 'ناقص'
 		APPROVED = 'approved', 'تأییدشده'
+		PUBLISHED = 'published', 'منتشرشده'
 		REJECTED = 'rejected', 'ردشده'
+		INACTIVE = 'inactive', 'غیرفعال'
 
 	user = models.OneToOneField(
 		settings.AUTH_USER_MODEL,
 		on_delete=models.CASCADE,
-		related_name='coach_application',
+		related_name='portfolio',
 		verbose_name='کاربر مربی',
 	)
-	coaching_level = models.CharField('سطح مربیگری', max_length=100)
-	specializations = models.TextField('تخصص‌ها')
-	years_experience = models.PositiveSmallIntegerField('سابقهٔ مربیگری، به سال')
-	club_name = models.CharField('نام باشگاه', max_length=150, blank=True)
-	certificate_details = models.TextField('توضیحات مدارک')
+
+	# Identity & public page
+	display_name = models.CharField('نام نمایشی', max_length=100, blank=True)
+	headline = models.CharField('عنوان کوتاه', max_length=180, blank=True)
+	biography = models.TextField('معرفی مربی', blank=True)
+	avatar = models.ImageField('تصویر', upload_to='coaches/avatars/%Y/%m/', blank=True)
+
+	# Coaching details
+	coaching_level = models.CharField('سطح مربیگری', max_length=100, blank=True)
+	specializations = models.TextField('تخصص‌ها', blank=True)
+	years_experience = models.PositiveSmallIntegerField('سابقهٔ مربیگری، به سال', default=0, blank=True)
+	belt = models.CharField('رنگ و درجه کمربند', max_length=40, blank=True)
+	club = models.CharField('باشگاه محل فعالیت', max_length=150, blank=True)
+
+	# Certificates
+	certificate_details = models.TextField('توضیحات مدارک و افتخارات', blank=True)
 	certificate_document = models.FileField(
 		'فایل مدرک',
 		storage=private_storage,
 		upload_to='coach-certificates/%Y/%m/',
+		blank=True,
 		validators=[FileExtensionValidator(
 			['pdf', 'jpg', 'jpeg', 'png'],
 			message='فقط فایل PDF یا تصویر JPG و PNG مجاز است.',
 		)],
 	)
+
+	# Lifecycle
 	status = models.CharField(
-		'وضعیت درخواست',
+		'وضعیت',
 		max_length=20,
 		choices=Status.choices,
-		default=Status.PENDING_REVIEW,
+		default=Status.DRAFT,
 	)
 	rejection_reason = models.TextField('دلیل رد درخواست', blank=True)
-	submitted_at = jmodels.jDateTimeField('زمان ثبت', auto_now_add=True)
+	is_published = models.BooleanField('انتشار در آکادمی', default=False)
+
+	submitted_at = jmodels.jDateTimeField('زمان ثبت', null=True, blank=True)
 	reviewed_at = jmodels.jDateTimeField('زمان بررسی', null=True, blank=True)
-
-	class Meta:
-		verbose_name = 'درخواست مربیگری'
-		verbose_name_plural = 'درخواست‌های مربیگری'
-		ordering = ['-submitted_at']
-
-	def clean(self):
-		super().clean()
-		if self.user_id and self.user.role != self.user.Role.COACH:
-			raise ValidationError({'user': 'فقط حساب مربی می‌تواند درخواست مربیگری ثبت کند.'})
-		if self.status == self.Status.REJECTED and not self.rejection_reason.strip():
-			raise ValidationError({'rejection_reason': 'برای رد درخواست، دلیل را وارد کنید.'})
-
-	def __str__(self):
-		return f'{self.user.username} ({self.get_status_display()})'
-
-
-class CoachProfile(models.Model):
-	objects = jmodels.jManager()
-
-	application = models.OneToOneField(
-		CoachApplication,
-		on_delete=models.CASCADE,
-		related_name='profile',
-		verbose_name='درخواست مربیگری',
-	)
-	display_name = models.CharField('نام نمایشی', max_length=100)
-	headline = models.CharField('عنوان کوتاه', max_length=180, blank=True)
-	biography = models.TextField('معرفی مربی')
-	belt = models.CharField('درجه', max_length=40, blank=True)
-	club = models.CharField('باشگاه', max_length=150, blank=True)
-	avatar = models.ImageField('تصویر', upload_to='coaches/avatars/%Y/%m/', blank=True)
-	is_published = models.BooleanField('انتشار پروفایل', default=False)
 	created_at = jmodels.jDateTimeField('زمان ایجاد', auto_now_add=True)
 	updated_at = jmodels.jDateTimeField('آخرین ویرایش', auto_now=True)
 
 	class Meta:
-		verbose_name = 'پروفایل مربی'
-		verbose_name_plural = 'پروفایل‌های مربیان'
+		verbose_name = 'پورتفولیوی مربی'
+		verbose_name_plural = 'پورتفولیوهای مربیان'
 		ordering = ['display_name']
 
 	def clean(self):
 		super().clean()
-		if self.is_published and self.application.status != CoachApplication.Status.APPROVED:
-			raise ValidationError({'is_published': 'پیش از انتشار پروفایل، درخواست مربی باید تأیید شود.'})
+		if self.user_id and self.user.role != self.user.Role.COACH:
+			raise ValidationError({'user': 'فقط حساب مربی می‌تواند پورتفولیو داشته باشد.'})
+		if self.status == self.Status.REJECTED and not self.rejection_reason.strip():
+			raise ValidationError({'rejection_reason': 'برای رد درخواست، دلیل را وارد کنید.'})
+		if self.is_published and self.status not in (self.Status.APPROVED, self.Status.PUBLISHED):
+			raise ValidationError({'is_published': 'پیش از انتشار، پورتفولیو باید تأیید شده باشد.'})
 
 	def __str__(self):
-		return self.display_name
+		return self.display_name or self.user.phone or f'coach-{self.pk}'
 
 
 class CoachInvite(models.Model):
@@ -108,7 +106,7 @@ class CoachInvite(models.Model):
 	objects = jmodels.jManager()
 
 	coach = models.ForeignKey(
-		CoachProfile,
+		CoachPortfolio,
 		verbose_name='مربی',
 		on_delete=models.CASCADE,
 		related_name='invites',
@@ -160,7 +158,7 @@ class CoachStudent(models.Model):
 	objects = jmodels.jManager()
 
 	coach = models.ForeignKey(
-		CoachProfile,
+		CoachPortfolio,
 		verbose_name='مربی',
 		on_delete=models.CASCADE,
 		related_name='students',

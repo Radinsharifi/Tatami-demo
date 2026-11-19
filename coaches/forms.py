@@ -4,32 +4,57 @@ from django import forms
 
 from coaches.storage import PrivateFileInput
 
-from .models import CoachApplication, CoachInvite, CoachProfile
+from .models import CoachInvite, CoachPortfolio
 
 
-class CoachApplicationForm(forms.ModelForm):
+class CoachPortfolioForm(forms.ModelForm):
+	"""The coach's own record: application details and public page in one form.
+
+	Used both when a coach submits for the first time (`/coaches/apply/`) and
+	when an approved coach keeps the page current (`/coaches/portfolio/`).
+	`status` and `is_published` are deliberately absent: the coach fills the
+	content, admins decide the state, and only the team publishes.
+	"""
+
 	class Meta:
-		model = CoachApplication
+		model = CoachPortfolio
 		fields = (
+			'display_name',
+			'headline',
+			'biography',
+			'avatar',
 			'coaching_level',
 			'specializations',
 			'years_experience',
-			'club_name',
+			'belt',
+			'club',
 			'certificate_details',
 			'certificate_document',
 		)
 		widgets = {
+			'headline': forms.TextInput(attrs={'placeholder': 'مثلاً مربی کاتا و کیهوکوشین'}),
+			'biography': forms.Textarea(attrs={'rows': 5}),
 			'specializations': forms.Textarea(attrs={'rows': 3}),
 			'certificate_details': forms.Textarea(attrs={'rows': 3}),
 			# The certificate is private; the default widget would call `.url()`.
 			'certificate_document': PrivateFileInput,
 		}
 
+	def clean_display_name(self):
+		name = (self.cleaned_data.get('display_name') or '').strip()
+		if not name:
+			raise forms.ValidationError('نام نمایشی را وارد کنید.')
+		return name
+
 	def clean_certificate_document(self):
-		document = self.cleaned_data['certificate_document']
-		if document.size > 10 * 1024 * 1024:
+		document = self.cleaned_data.get('certificate_document')
+		if document and hasattr(document, 'size') and document.size > 10 * 1024 * 1024:
 			raise forms.ValidationError('حجم فایل مدرک نباید بیشتر از ۱۰ مگابایت باشد.')
 		return document
+
+
+# Older imports (views, tests) used the application name; same form now.
+CoachApplicationForm = CoachPortfolioForm
 
 
 class CoachInviteForm(forms.ModelForm):
@@ -64,19 +89,3 @@ class InviteCodeEntryForm(forms.Form):
 		if not re.fullmatch(r'[A-Z0-9]{4,12}', code):
 			raise forms.ValidationError('کد دعوت باید ۸ نویسهٔ انگلیسی یا رقم باشد.')
 		return code
-
-
-class CoachProfileForm(forms.ModelForm):
-	"""The coach's own public profile.
-
-	`is_published` is deliberately absent: the team still decides when the
-	profile goes live, so the coach can prepare it without publishing.
-	"""
-
-	class Meta:
-		model = CoachProfile
-		fields = ('display_name', 'headline', 'biography', 'belt', 'club', 'avatar')
-		widgets = {
-			'headline': forms.TextInput(attrs={'placeholder': 'مثلاً مربی کاتا و کیهوکوشین'}),
-			'biography': forms.Textarea(attrs={'rows': 5}),
-		}
