@@ -100,8 +100,11 @@ def phone_login(request):
 				request.session['otp_next'] = _safe_next(request, form.cleaned_data.get('next_url'))
 				return redirect('phone_auth:verify_otp')
 	else:
+		# The chooser may send any declared role (student/coach/gym);
+		# anything unknown falls back to the default student role.
+		requested_role = request.GET.get('role', User.Role.STUDENT)
 		form = PhoneLoginForm(initial={
-			'role': User.Role.COACH if request.GET.get('role') == User.Role.COACH else User.Role.STUDENT,
+			'role': requested_role if requested_role in User.Role.values else User.Role.STUDENT,
 			'next_url': _safe_next(request, request.GET.get('next')),
 		})
 
@@ -257,13 +260,19 @@ def password_reset_confirm(request):
 def account(request):
 	"""The signed-in landing page, including the coach portfolio's state.
 
-	`accounts` must not import `coaches`, so the reverse OneToOne is read with
-	`getattr`; a missing portfolio is simply "has not applied yet".
+	`accounts` must not import `coaches` or `gyms`, so the reverse relations
+	are read with `getattr`/managers; a missing record simply means
+	"has not been created yet".
 	"""
 	portfolio = None
 	if request.user.is_authenticated and request.user.role == User.Role.COACH:
 		portfolio = getattr(request.user, 'portfolio', None)
 
+	owned_gym = None
+	if request.user.is_authenticated and request.user.role == User.Role.GYM:
+		owned_gym = request.user.owned_gyms.first()
+
 	return render(request, 'pages/account.html', {
 		'coach_portfolio': portfolio,
+		'owned_gym': owned_gym,
 	})

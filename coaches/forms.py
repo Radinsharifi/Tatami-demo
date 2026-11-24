@@ -27,7 +27,6 @@ class CoachPortfolioForm(forms.ModelForm):
 			'specializations',
 			'years_experience',
 			'belt',
-			'club',
 			'certificate_details',
 			'certificate_document',
 		)

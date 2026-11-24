@@ -36,7 +36,6 @@ class ClubTestCase(TestCase):
 			coaching_level='Advanced',
 			specializations='Taekwondo',
 			years_experience=8,
-			club='باشگاه آزمایشی',
 			certificate_details='مدرک مربیگری',
 			certificate_document=SimpleUploadedFile('certificate.pdf', b'%PDF-1.4 test'),
 			status=CoachPortfolio.Status.APPROVED,

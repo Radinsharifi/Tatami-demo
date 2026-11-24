@@ -23,6 +23,7 @@ class User(AbstractUser):
 	class Role(models.TextChoices):
 		STUDENT = 'student', 'هنرجو'
 		COACH = 'coach', 'مربی'
+		GYM = 'gym', 'باشگاه'
 
 	role = models.CharField('نقش', max_length=10, choices=Role.choices, default=Role.STUDENT)
 

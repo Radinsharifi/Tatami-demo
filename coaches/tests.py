@@ -25,7 +25,6 @@ class CoachWorkflowTests(TestCase):
 			coaching_level='Advanced',
 			specializations='Taekwondo',
 			years_experience=8,
-			club='Local club',
 			certificate_details='National coaching certificate',
 			certificate_document=SimpleUploadedFile('certificate.pdf', b'%PDF-1.4 test document'),
 		)
@@ -48,7 +47,6 @@ class CoachWorkflowTests(TestCase):
 				'coaching_level': 'Advanced',
 				'specializations': 'Taekwondo',
 				'years_experience': 8,
-				'club': 'Local club',
 				'certificate_details': 'National coaching certificate',
 				'certificate_document': SimpleUploadedFile('certificate.pdf', b'%PDF-1.4 test document'),
 			},
@@ -195,7 +193,6 @@ def _make_portfolio(user, display_name='مربی کد'):
 		coaching_level='Advanced',
 		specializations='Taekwondo',
 		years_experience=8,
-		club='باشگاه آزمایشی',
 		certificate_details='مدرک مربیگری',
 		certificate_document=SimpleUploadedFile('certificate.pdf', b'%PDF-1.4 test'),
 		status=CoachPortfolio.Status.APPROVED,
@@ -391,7 +388,6 @@ class CoachHubTests(TestCase):
 			coaching_level='Advanced',
 			specializations='Taekwondo',
 			years_experience=5,
-			club='باشگاه آزمایشی',
 			certificate_details='مدرک مربیگری',
 			certificate_document=SimpleUploadedFile('hub.pdf', b'%PDF-1.4 hub'),
 			status=status,
@@ -444,7 +440,6 @@ class CoachHubTests(TestCase):
 			'coaching_level': 'Advanced',
 			'specializations': 'Kata',
 			'years_experience': 9,
-			'club': 'باشگاه تازه',
 			'certificate_details': 'مدرک کامل',
 		})
 
@@ -454,7 +449,7 @@ class CoachHubTests(TestCase):
 		self.assertEqual(portfolio.rejection_reason, '')
 		self.assertIsNone(portfolio.reviewed_at)
 		self.assertEqual(portfolio.specializations, 'Kata')
-		self.assertEqual(portfolio.club, 'باشگاه تازه')
+		self.assertIsNone(portfolio.gym)
 		self.assertGreater(portfolio.submitted_at, original_submitted_at)
 		self.assertEqual(CoachPortfolio.objects.filter(user=self.coach_user).count(), 1)
 
@@ -499,7 +494,6 @@ class CoachHubTests(TestCase):
 			'headline': 'مربی کاتا',
 			'biography': 'معرفی تازه',
 			'belt': 'دان ۳',
-			'club': 'باشگاه مرکزی',
 		})
 
 		self.assertRedirects(response, reverse('coaches:portfolio'))

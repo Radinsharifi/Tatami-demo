@@ -31,6 +31,15 @@ class UserRoleTests(TestCase):
 
 		self.assertEqual(user.role, get_user_model().Role.COACH)
 
+	def test_gym_role_can_be_assigned(self):
+		user = get_user_model().objects.create_user(
+			username='new-gym',
+			password='test-password',
+			role=get_user_model().Role.GYM,
+		)
+
+		self.assertEqual(user.role, get_user_model().Role.GYM)
+
 
 @override_settings(SMS_BACKEND='accounts.sms.FakeSMSBackend')
 class AuthenticationFlowTests(TestCase):
@@ -80,6 +89,25 @@ class AuthenticationFlowTests(TestCase):
 		self.assertEqual(user.role, get_user_model().Role.COACH)
 		self.assertFalse(user.has_usable_password())
 		self.assertEqual(int(self.client.session['_auth_user_id']), user.pk)
+
+	def test_gym_signup_is_created_with_the_gym_role(self):
+		self.request_code(role='gym')
+		response = self.verify_latest_code()
+		self.assertRedirects(response, reverse('phone_auth:complete_profile'))
+		user = get_user_model().objects.get(phone=self.phone)
+		self.assertEqual(user.role, get_user_model().Role.GYM)
+
+	def test_sms_login_keeps_any_declared_role(self):
+		response = self.client.get(reverse('phone_auth:sms_login'), {'role': 'gym'})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context['form']['role'].value(), 'gym')
+
+	def test_sms_login_falls_back_to_student_for_an_unknown_role(self):
+		response = self.client.get(reverse('phone_auth:sms_login'), {'role': 'visitor'})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context['form']['role'].value(), 'student')
 
 	def test_invalid_code_attempts_are_persisted_and_code_is_consumed(self):
 		self.request_code()

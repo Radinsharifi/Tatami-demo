@@ -10,9 +10,9 @@ from .storage import PrivateFileInput
 
 @admin.register(CoachPortfolio)
 class CoachPortfolioAdmin(admin.ModelAdmin):
-	list_display = ('display_name', 'user', 'belt', 'club', 'status', 'is_published', 'updated_at')
+	list_display = ('display_name', 'user', 'belt', 'gym', 'status', 'is_published', 'updated_at')
 	list_filter = ('status', 'is_published', ('submitted_at', JDateFieldListFilter))
-	search_fields = ('display_name', 'user__phone', 'club', 'coaching_level')
+	search_fields = ('display_name', 'user__phone', 'gym__name', 'coaching_level')
 	readonly_fields = (
 		'certificate_download',
 		'created_at',
@@ -30,7 +30,7 @@ class CoachPortfolioAdmin(admin.ModelAdmin):
 		'specializations',
 		'years_experience',
 		'belt',
-		'club',
+		'gym',
 		'certificate_details',
 		'certificate_document',
 		'certificate_download',

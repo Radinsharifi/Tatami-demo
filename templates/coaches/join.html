@@ -15,11 +15,11 @@
     <div>
       <h1 class="page-title">{{ invite.coach.display_name }}</h1>
       {% if invite.coach.headline %}<p class="page-copy">{{ invite.coach.headline }}</p>{% endif %}
-      {% if invite.coach.belt or invite.coach.club %}
+      {% if invite.coach.belt or invite.coach.gym %}
         <p class="field-help">
           {% if invite.coach.belt %}{{ invite.coach.belt }}{% endif %}
-          {% if invite.coach.belt and invite.coach.club %} — {% endif %}
-          {% if invite.coach.club %}{{ invite.coach.club }}{% endif %}
+          {% if invite.coach.belt and invite.coach.gym %} — {% endif %}
+          {% if invite.coach.gym %}{{ invite.coach.gym }}{% endif %}
         </p>
       {% endif %}
     </div>

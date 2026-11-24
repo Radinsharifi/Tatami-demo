@@ -57,6 +57,27 @@
           </nav>
         {% endif %}
       </section>
+    {% elif user.role == 'gym' %}
+      <section class="coach-status" aria-label="پنل باشگاه">
+        <div class="status-head">
+          <h2>پنل باشگاه</h2>
+          {% if owned_gym %}
+            <span class="status-chip status-{{ owned_gym.status }}">{{ owned_gym.get_status_display }}</span>
+          {% else %}
+            <span class="status-chip status-none">ثبت نشده</span>
+          {% endif %}
+        </div>
+
+        {% if owned_gym %}
+          <p>باشگاه «{{ owned_gym.name }}» ثبت شده است.</p>
+          <nav class="panel-links" aria-label="پنل باشگاه">
+            <a class="text-link" href="{% url 'gyms:panel' %}">مدیریت باشگاه</a>
+          </nav>
+        {% else %}
+          <p>هنوز باشگاهی ثبت نکرده‌اید. با اطلاعات پایهٔ باشگاه شروع کنید؛ مربیان و هنرجوها را می‌توانید بعداً اضافه کنید.</p>
+          <a class="button button-dark" href="{% url 'gyms:create' %}">ساخت باشگاه</a>
+        {% endif %}
+      </section>
     {% else %}
       <nav class="account-grid" aria-label="دسترسی سریع">
         <a class="account-card" href="{% url 'club:course_list' %}">
@@ -79,7 +100,7 @@
     {% endif %}
   {% else %}
     <h1 class="page-title">مسیرت را انتخاب کن</h1>
-    <p class="page-copy">برای ادامه، حساب هنرجو یا مربی بساز یا وارد حساب خودت شو.</p>
+    <p class="page-copy">برای ادامه، حساب هنرجو، مربی یا باشگاه بساز یا وارد حساب خودت شو.</p>
     <section class="role-list" aria-label="نوع حساب کاربری">
       <div class="role-row">
         <span class="role-number">۰۱</span>
@@ -93,8 +114,8 @@
       </div>
       <div class="role-row">
         <span class="role-number">۰۳</span>
-        <div><h2>باشگاه</h2><p>این گزینه فقط نمایشی است و در نسخهٔ اولیه حساب باشگاه ساخته نمی‌شود.</p></div>
-        <span class="role-status">نمایشی</span>
+        <div><h2>باشگاه</h2><p>باشگاهت را ثبت کن و مربیان و ساختارش را مدیریت کن.</p></div>
+        <a class="role-action" href="{% url 'phone_auth:sms_login' %}?role=gym&next={% url 'gyms:create' %}">ورود / ثبت‌نام</a>
       </div>
     </section>
     <p class="account-login">حساب کاربری داری؟ <a href="{% url 'phone_auth:login' %}">وارد شو</a></p>

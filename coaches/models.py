@@ -46,7 +46,17 @@ class CoachPortfolio(models.Model):
 	specializations = models.TextField('تخصص‌ها', blank=True)
 	years_experience = models.PositiveSmallIntegerField('سابقهٔ مربیگری، به سال', default=0, blank=True)
 	belt = models.CharField('رنگ و درجه کمربند', max_length=40, blank=True)
-	club = models.CharField('باشگاه محل فعالیت', max_length=150, blank=True)
+	# Nullable: most coaches are not attached to a club yet, and a club may
+	# not exist when the application is filed. String reference keeps the
+	# dependency one-way (coaches → gyms); `gyms` never imports `coaches`.
+	gym = models.ForeignKey(
+		'gyms.Gym',
+		verbose_name='باشگاه محل فعالیت',
+		on_delete=models.SET_NULL,
+		null=True,
+		blank=True,
+		related_name='coaches',
+	)
 
 	# Certificates
 	certificate_details = models.TextField('توضیحات مدارک و افتخارات', blank=True)

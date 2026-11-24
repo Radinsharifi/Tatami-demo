@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django_jalali',
     'accounts.apps.AccountsConfig',
     'coaches.apps.CoachesConfig',
+    'gyms.apps.GymsConfig',
     'store.apps.StoreConfig',
     'orders.apps.OrdersConfig',
     'club.apps.ClubConfig',
