@@ -78,6 +78,11 @@ SHIPPING_FLAT_RATE = config('SHIPPING_FLAT_RATE', default='50000', cast=Decimal)
 # production put Nginx in front and let it serve `/protected/` instead.
 COURSE_VIDEO_MAX_BYTES = config('COURSE_VIDEO_MAX_BYTES', default=1024 ** 3, cast=int)
 USE_X_ACCEL_REDIRECT = config('USE_X_ACCEL_REDIRECT', default=False, cast=bool)
+# Neshan geocoding (address ↔ coordinates) runs server-side with the Service
+# Key from the platform.neshan.org panel. The key never reaches the browser;
+# an empty value makes `gyms.geocoding` fail with a clear "not configured"
+# error instead of calling the network.
+NESHAN_API_KEY = config('NESHAN_API_KEY', default='')
 SESSION_COOKIE_AGE = 30 * 24 * 60 * 60
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = not DEBUG

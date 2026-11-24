@@ -1,15 +1,21 @@
+import io
+import json
 from datetime import time
 from decimal import Decimal
+from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 # Test-only import: the roster panel links coach accounts, so the fixtures
 # need real portfolios. Production code in `gyms` never imports `coaches`.
 from coaches.models import CoachPortfolio
+from coaches.templatetags.persian import persian_digits
 
+from .geocoding import GeocodingError, geocode, reverse_geocode
 from .models import Gym, GymCoachPlaceholder, GymWorkingHour
 from .services import create_gym, ensure_working_hours
 
@@ -439,6 +445,83 @@ class GymAdminTests(TestCase):
 		self.assertFalse(Gym.objects.exists())
 
 
+class GymPublicPagesTests(TestCase):
+	"""The public directory and detail pages — only `active` clubs show up,
+	flipped by the team in Django Admin."""
+
+	def setUp(self):
+		self.owner = make_user('09120000036', role=get_user_model().Role.GYM)
+		self.active = create_gym(
+			owner=self.owner,
+			created_by=self.owner,
+			status=Gym.Status.ACTIVE,
+			**VALID_GYM,
+		)
+		self.pending = create_gym(
+			status=Gym.Status.PENDING,
+			**{**VALID_GYM, 'name': 'باشگاه در انتظار', 'phone': '02199887766'},
+		)
+
+	def test_directory_lists_only_active_clubs(self):
+		response = self.client.get(reverse('gyms:directory'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'باشگاه تاتامی')
+		self.assertContains(response, reverse('gyms:detail', args=[self.active.pk]))
+		self.assertNotContains(response, 'باشگاه در انتظار')
+
+	def test_directory_shows_an_empty_state_when_no_club_is_active(self):
+		Gym.objects.all().delete()
+
+		response = self.client.get(reverse('gyms:directory'))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'هنوز باشگاه فعالی ثبت نشده است')
+
+	def test_detail_shows_all_the_club_data(self):
+		response = self.client.get(reverse('gyms:detail', args=[self.active.pk]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'باشگاه تاتامی')
+		self.assertContains(response, VALID_GYM['address'])
+		self.assertContains(response, persian_digits(VALID_GYM['phone']))
+		self.assertContains(response, persian_digits(VALID_GYM['latitude']))
+		self.assertContains(response, 'شنبه')
+		self.assertContains(response, 'تعطیل')
+		self.assertContains(response, 'اطلاعات تماس')
+
+	def test_pending_club_has_no_public_page(self):
+		response = self.client.get(reverse('gyms:detail', args=[self.pending.pk]))
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_detail_lists_linked_and_placeholder_coaches(self):
+		coach = make_coach('09120000037')
+		coach.is_published = True
+		coach.gym = self.active
+		coach.save(update_fields=['is_published', 'gym', 'updated_at'])
+		GymCoachPlaceholder.objects.create(
+			gym=self.active, name='مربی مهمان', phone='09120000038',
+		)
+
+		response = self.client.get(reverse('gyms:detail', args=[self.active.pk]))
+
+		self.assertContains(response, 'مربی آزمایشی')
+		self.assertContains(response, 'مربی مهمان')
+		# Roster phone numbers are never shown on the public page.
+		self.assertNotContains(response, '09120000038')
+
+	def test_detail_hides_linked_coaches_that_are_not_published(self):
+		coach = make_coach('09120000039')
+		coach.gym = self.active
+		coach.save(update_fields=['gym', 'updated_at'])
+
+		response = self.client.get(reverse('gyms:detail', args=[self.active.pk]))
+
+		self.assertContains(response, 'هنوز مربی‌ای برای این باشگاه معرفی نشده است')
+		self.assertNotContains(response, 'مربی آزمایشی')
+
+
 class AccountHubTests(TestCase):
 	"""The guest chooser and the gym role's section on `/account/`."""
 
@@ -468,3 +551,110 @@ class AccountHubTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, reverse('gyms:create'))
+
+
+class GeocodingTests(TestCase):
+	"""The server-side Neshan client (PRD item 6, geolocation API only).
+
+	Network is always mocked: no test may reach the real service, and the
+	Service Key travels only in the `Api-Key` header — never in the URL.
+	"""
+
+	def test_missing_key_fails_clearly_instead_of_calling_the_network(self):
+		with override_settings(NESHAN_API_KEY=''), patch('gyms.geocoding.urlopen') as network:
+			with self.assertRaises(GeocodingError) as caught:
+				geocode('تهران، خیابان آزادی')
+
+		self.assertIn('NESHAN_API_KEY', str(caught.exception))
+		network.assert_not_called()
+
+	def test_empty_address_is_rejected_before_any_request(self):
+		with patch('gyms.geocoding.urlopen') as network:
+			with self.assertRaises(GeocodingError) as caught:
+				geocode('   ')
+
+		self.assertIn('آدرس خالی', str(caught.exception))
+		network.assert_not_called()
+
+	@override_settings(NESHAN_API_KEY='service-key')
+	@patch('gyms.geocoding.urlopen')
+	def test_geocode_returns_storable_coordinates(self, network):
+		network.return_value.read.return_value = json.dumps({
+			'status': 'OK',
+			'location': {'x': 51.389000123, 'y': 35.721900456},
+		}).encode()
+
+		result = geocode('تهران، خیابان آزادی')
+
+		self.assertEqual(result['lat'], Decimal('35.721900'))
+		self.assertEqual(result['lng'], Decimal('51.389000'))
+		request = network.call_args.args[0]
+		self.assertIn('/v6/geocoding', request.full_url)
+		self.assertIn('address=', request.full_url)
+		self.assertGreater(network.call_args.kwargs['timeout'], 0)
+		# The key rides in the header only, so it can't leak via URLs/logs.
+		self.assertTrue(any(k.lower() == 'api-key' for k in request.headers))
+
+	@override_settings(NESHAN_API_KEY='service-key')
+	@patch('gyms.geocoding.urlopen')
+	def test_reverse_returns_the_location_payload(self, network):
+		payload = {
+			'status': 'OK',
+			'formatted_address': 'تهران، دکتر فاطمی، حجاب',
+			'city': 'تهران',
+			'state': 'استان تهران',
+		}
+		network.return_value.read.return_value = json.dumps(payload).encode()
+
+		result = reverse_geocode('35.721900', '51.389000')
+
+		self.assertEqual(result['formatted_address'], 'تهران، دکتر فاطمی، حجاب')
+		self.assertEqual(result['city'], 'تهران')
+		self.assertIn('/v5/reverse', network.call_args.args[0].full_url)
+
+	@override_settings(NESHAN_API_KEY='service-key')
+	@patch('gyms.geocoding.urlopen')
+	def test_service_error_codes_surface_by_name(self, network):
+		network.side_effect = HTTPError(
+			'https://api.neshan.org/v6/geocoding',
+			481,
+			'LimitExceeded',
+			hdrs=None,
+			fp=io.BytesIO(b'{"status": "LimitExceeded"}'),
+		)
+
+		with self.assertRaises(GeocodingError) as caught:
+			geocode('تهران')
+
+		self.assertIn('LimitExceeded', str(caught.exception))
+		self.assertIn('481', str(caught.exception))
+
+	@override_settings(NESHAN_API_KEY='service-key')
+	@patch('gyms.geocoding.urlopen')
+	def test_non_ok_status_in_a_200_response_is_an_error(self, network):
+		network.return_value.read.return_value = b'{"status": "NOT_FOUND"}'
+
+		with self.assertRaises(GeocodingError) as caught:
+			geocode('آدرس ناشناس')
+
+		self.assertIn('NOT_FOUND', str(caught.exception))
+
+	@override_settings(NESHAN_API_KEY='service-key')
+	@patch('gyms.geocoding.urlopen')
+	def test_unparsable_body_is_an_error(self, network):
+		network.return_value.read.return_value = b'<html>gateway</html>'
+
+		with self.assertRaises(GeocodingError) as caught:
+			geocode('تهران')
+
+		self.assertIn('نامعتبر', str(caught.exception))
+
+	@override_settings(NESHAN_API_KEY='service-key')
+	@patch('gyms.geocoding.urlopen')
+	def test_unreachable_service_is_an_error(self, network):
+		network.side_effect = URLError('connection refused')
+
+		with self.assertRaises(GeocodingError) as caught:
+			reverse_geocode('35.721900', '51.389000')
+
+		self.assertIn('ممکن نشد', str(caught.exception))

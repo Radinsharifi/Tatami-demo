@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from accounts.models import User
@@ -28,6 +28,32 @@ def _panel_context(gym, *, placeholder_form=None, link_form=None):
 		'placeholder_form': placeholder_form or GymCoachPlaceholderForm(),
 		'link_form': link_form or LinkCoachForm(),
 	}
+
+
+def directory(request):
+	"""Public list of clubs. Only `active` clubs appear: an owner-created
+	club stays `pending` until the team flips its status in Django Admin."""
+	active = Gym.objects.filter(status=Gym.Status.ACTIVE)
+	return render(request, 'gyms/directory.html', {'gyms': active})
+
+
+def detail(request, gym_id):
+	"""One active club, showing all of its data.
+
+	The linked-coach filter mirrors the coaches-directory publication rule
+	using plain status strings, so `gyms` never imports `coaches`.
+	"""
+	gym = get_object_or_404(Gym, pk=gym_id, status=Gym.Status.ACTIVE)
+	return render(request, 'gyms/detail.html', {
+		'gym': gym,
+		'working_hours': gym.working_hours.all(),
+		'linked_coaches': gym.coaches.filter(
+			status__in=('approved', 'published'),
+			is_published=True,
+		).select_related('user'),
+		'placeholders': gym.coach_placeholders.all(),
+		'student_count': gym.student_links.count(),
+	})
 
 
 @login_required

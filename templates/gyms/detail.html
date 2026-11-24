@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% load persian %}
+{% load jformat %}
+
+{% block title %}{{ gym.name }} | باشگاه‌های تاتامی پلاس{% endblock %}
+{% block content %}
+<main class="page-main">
+  <p class="eyebrow">باشگاه فعال تاتامی پلاس</p>
+  <h1 class="page-title">{{ gym.name }}</h1>
+  <p class="page-copy">
+    <span class="status-chip status-active">فعال</span>
+    ثبت‌شده در {{ gym.created_at|jformat:'%Y/%m/%d'|persian_digits }}
+  </p>
+
+  <nav class="panel-links" aria-label="بخش‌های صفحهٔ باشگاه">
+    <a class="text-link" href="#contact">اطلاعات تماس</a>
+    <a class="text-link" href="#hours">ساعت کاری</a>
+    <a class="text-link" href="#coaches">مربیان</a>
+    <a class="text-link" href="#students">هنرجوها</a>
+    <a class="text-link" href="#location">موقعیت</a>
+  </nav>
+
+  <section id="contact" aria-label="اطلاعات تماس">
+    <h2>اطلاعات تماس</h2>
+    <div class="account-grid">
+      <div class="account-card"><strong>تلفن باشگاه</strong><span>{{ gym.phone|persian_digits }}</span></div>
+      <div class="account-card"><strong>نشانی</strong><span>{{ gym.address }}</span></div>
+    </div>
+  </section>
+
+  <section id="hours" aria-label="ساعت کاری">
+    <h2>ساعت کاری</h2>
+    <table class="hours-table">
+      <thead>
+        <tr><th>روز</th><th>ساعت باز شدن</th><th>ساعت بسته شدن</th></tr>
+      </thead>
+      <tbody>
+        {% for hour in working_hours %}
+          <tr>
+            <td>{{ hour.get_day_display }}</td>
+            {% if hour.is_closed %}
+              <td colspan="2">تعطیل</td>
+            {% else %}
+              <td>{{ hour.opens|time:'H:i'|persian_digits }}</td>
+              <td>{{ hour.closes|time:'H:i'|persian_digits }}</td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">ساعت کاری اعلام نشده است.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section id="coaches" aria-label="مربیان باشگاه">
+    <h2>مربیان</h2>
+    {% if linked_coaches or placeholders %}
+      {% if linked_coaches %}
+        <section class="coach-list" aria-label="مربیان با حساب کاربری">
+          {% for coach in linked_coaches %}
+            <a class="coach-row" href="{% url 'coaches:profile_detail' coach.pk %}">
+              <span class="coach-index">{{ forloop.counter|stringformat:'02d' }}</span>
+              <span><strong>{{ coach.display_name }}</strong><small>{{ coach.headline }}</small></span>
+              <span class="arrow" aria-hidden="true">&larr;</span>
+            </a>
+          {% endfor %}
+        </section>
+      {% endif %}
+      {% if placeholders %}
+        <div class="account-grid">
+          {% for placeholder in placeholders %}
+            <div class="account-card">
+              <strong>{{ placeholder.name }}</strong>
+              <span>مربی این باشگاه</span>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% else %}
+      <p class="field-help">هنوز مربی‌ای برای این باشگاه معرفی نشده است.</p>
+    {% endif %}
+  </section>
+
+  <section id="students" aria-label="هنرجوها">
+    <h2>هنرجوها</h2>
+    <p class="field-help">
+      {% if student_count %}
+        {{ student_count|persian_digits }} هنرجو در این باشگاه ثبت شده است.
+      {% else %}
+        فهرست هنرجوها به‌زودی در همین صفحه قرار می‌گیرد.
+      {% endif %}
+    </p>
+  </section>
+
+  <section id="location" aria-label="موقعیت مکانی">
+    <h2>موقعیت مکانی</h2>
+    <div class="account-grid">
+      <div class="account-card"><strong>عرض جغرافیایی</strong><span>{{ gym.latitude|persian_digits }}</span></div>
+      <div class="account-card"><strong>طول جغرافیایی</strong><span>{{ gym.longitude|persian_digits }}</span></div>
+    </div>
+    <p class="field-help">نمایش باشگاه روی نقشه در نسخه‌های بعدی اضافه می‌شود.</p>
+  </section>
+
+  <p class="account-login"><a href="{% url 'gyms:directory' %}">بازگشت به فهرست باشگاه‌ها</a></p>
+</main>
+{% endblock %}

@@ -5,6 +5,8 @@ from . import views
 app_name = 'gyms'
 
 urlpatterns = [
+	path('', views.directory, name='directory'),
+	path('<int:gym_id>/', views.detail, name='detail'),
 	path('new/', views.create, name='create'),
 	path('panel/', views.panel, name='panel'),
 	path('panel/coaches/add/', views.coach_placeholder_add, name='coach_placeholder_add'),

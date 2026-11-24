@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}باشگاه‌ها | تاتامی پلاس{% endblock %}
+{% block content %}
+<main class="page-main">
+  <p class="eyebrow">تمرین حرفه‌ای، نزدیک خانه</p>
+  <h1 class="page-title">باشگاه‌های تاتامی پلاس</h1>
+  <p class="page-copy">فقط باشگاه‌هایی در این فهرست دیده می‌شوند که تیم تاتامی پلاس وضعیتشان را «فعال» کرده باشد.</p>
+  {% if gyms %}
+    <section class="coach-list" aria-label="باشگاه‌های فعال">
+      {% for gym in gyms %}
+        <a class="coach-row" href="{% url 'gyms:detail' gym.pk %}">
+          <span class="coach-index">{{ forloop.counter|stringformat:'02d' }}</span>
+          <span><strong>{{ gym.name }}</strong><small>{{ gym.address }}</small></span>
+          <span class="arrow" aria-hidden="true">&larr;</span>
+        </a>
+      {% endfor %}
+    </section>
+  {% else %}
+    <section class="empty-state" aria-live="polite">
+      <span class="empty-index">فهرست باشگاه‌ها</span>
+      <h2>باشگاه‌های فعال اینجا نمایش داده می‌شوند</h2>
+      <p>هنوز باشگاه فعالی ثبت نشده است.</p>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}

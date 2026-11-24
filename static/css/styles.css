@@ -180,6 +180,9 @@ h1, h2, p { margin-top: 0; }
 .account-card strong { font-size: 15px; }
 .account-card span { color: var(--muted); font-size: 12px; }
 .account-card:hover { border-color: var(--ink); }
+.hours-table { width: 100%; border-collapse: collapse; margin-block: 8px 24px; }
+.hours-table th, .hours-table td { text-align: start; padding: 12px 8px; border-bottom: 1px solid var(--line); font-size: 14px; }
+.hours-table th { color: var(--muted); font-weight: 500; }
 .coach-status { margin: 26px 0 0; padding: 22px 24px; border: 1px solid var(--line); border-inline-start: 3px solid var(--accent); background: rgba(255,255,255,.52); }
 .coach-status h2 { margin: 0; font-size: 16px; }
 .status-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
